@@ -12,6 +12,6 @@
 module purge
 module load cuda/11.1.74
 
-python -u /scratch/eo41/minGPT/play_saycam.py '/scratch/eo41/minGPT/saycam/A_1fps_288s' --data_cache '/scratch/eo41/minGPT/data_model_cache/data_A.pth' --save_dir '/scratch/eo41/minGPT/data_model_cache'
+python -u /scratch/eo41/minGPT/play_saycam.py '/scratch/eo41/minGPT/saycam/A_1fps_288s' --data_cache '/scratch/eo41/minGPT/data_model_cache/data_A.pth' --save_dir '/scratch/eo41/minGPT/data_model_cache' --batch_size 52 --d_img 36
 
 echo "Done"
