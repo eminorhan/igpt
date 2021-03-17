@@ -1,0 +1,12 @@
+# File extensions
+*.out
+*.pt
+*.pth
+*.jpeg
+
+# Directories
+__pycache__/
+cifar-10-batches-py/
+data_model_cache/
+saycam/
+useless/
