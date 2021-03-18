@@ -91,7 +91,7 @@ def make_dictionary(train_data, dict_size, d_img):
 
     return cluster_centers
 
-def generate_samples(trainer, model, train_dataset, cluster_centers, dict_size, n_samples):
+def generate_samples(model, train_dataset, cluster_centers, dict_size, n_samples):
     # to sample we also have to technically "train" a separate model for the first token in the sequence
     # we are going to do so below simply by calculating and normalizing the histogram of the first token
     counts = torch.ones(dict_size)  # start counts as 1 not zero, this is called "smoothing"
@@ -104,8 +104,10 @@ def generate_samples(trainer, model, train_dataset, cluster_centers, dict_size, 
     prob = counts / counts.sum()
 
     ## sample some generated images
-    start_pixel = np.random.choice(np.arange(cluster_centers.size(0)), size=(n_samples, 1), replace=True, p=prob)
-    start_pixel = torch.from_numpy(start_pixel).to(trainer.device)
+    start_pixel = np.random.choice(np.arange(cluster_centers.size(0)), size=(n_samples, 1), replace=True, p=prob.numpy())
+    start_pixel = torch.from_numpy(start_pixel)
+    if torch.cuda.is_available():
+        start_pixel = start_pixel.cuda()
     pixels = sample(model, start_pixel, train_dataset.d_img * train_dataset.d_img - 1, temperature=1.0, sample=True, top_k=100)
 
     # for visualization we have to invert the permutation used to produce the pixels
