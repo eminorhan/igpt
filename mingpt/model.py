@@ -34,6 +34,16 @@ class GPT1Config(GPTConfig):
     n_head = 12
     n_embd = 768
 
+class MeanLayer(torch.nn.Module):
+    def __init__(self, dim, keepdim=False):
+        super(MeanLayer, self).__init__()
+        self.dim = dim
+        self.keepdim = keepdim
+
+    def forward(self, x):
+        out = torch.mean(x, self.dim, self.keepdim)
+        return out
+
 class CausalSelfAttention(nn.Module):
     """
     A vanilla multi-head masked self-attention layer with a projection at the end.

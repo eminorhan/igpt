@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 
 class ImageDataset(Dataset):
     """
-    wrap up the pytorch CIFAR-10 dataset into our own, which will convert images into sequences of integers
+    wrap up the dataset into our own, which will convert images into sequences of integers
     """
     def __init__(self, pt_dataset, d_img, clusters, perm=None):
         self.pt_dataset = pt_dataset
@@ -29,6 +29,29 @@ class ImageDataset(Dataset):
         x = x[self.perm].float() # reshuffle pixels with any fixed permutation and -> float
         a = ((x[:, None, :] - self.clusters[None, :, :])**2).sum(-1).argmin(1) # cluster assignments
         return a[:-1], a[1:] # always just predict the next one in the sequence
+
+class ImageDatasetWithLabels(Dataset):
+    """
+    wrap up the dataset into our own, which will convert images into sequences of integers
+    """
+    def __init__(self, pt_dataset, d_img, clusters, perm=None):
+        self.pt_dataset = pt_dataset
+        self.clusters = clusters
+        self.d_img = d_img
+        self.perm = torch.arange(self.d_img * self.d_img) if perm is None else perm
+        
+        self.vocab_size = clusters.size(0)
+        self.block_size = self.d_img * self.d_img - 1
+        
+    def __len__(self):
+        return len(self.pt_dataset)
+
+    def __getitem__(self, idx):
+        x, y = self.pt_dataset[idx]
+        x = torch.from_numpy(np.array(x)).view(-1, 3) # flatten out all pixels
+        x = x[self.perm].float() # reshuffle pixels with any fixed permutation and -> float
+        a = ((x[:, None, :] - self.clusters[None, :, :])**2).sum(-1).argmin(1) # cluster assignments
+        return a[:-1], y # always just predict the next one in the sequence
 
 def set_seed(seed):
     random.seed(seed)

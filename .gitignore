@@ -9,4 +9,5 @@ __pycache__/
 cifar-10-batches-py/
 data_model_cache/
 saycam/
+saycam_labeled/
 useless/

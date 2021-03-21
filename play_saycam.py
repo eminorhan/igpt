@@ -16,7 +16,7 @@ parser.add_argument('--d_img', default=36, type=int, help='image size (pixels)')
 parser.add_argument('--dict_size', default=384, type=int, help='dictionary size')
 parser.add_argument('--n_layer', default=12, type=int, help='number of layers')
 parser.add_argument('--n_head', default=8, type=int, help='number of attention heads')
-parser.add_argument('--n_embd', default=384, type=int, help='embedding dimensionality')
+parser.add_argument('--n_embd', default=512, type=int, help='embedding dimensionality')
 parser.add_argument('--epochs', default=10, type=int, help='number of training epochs')
 parser.add_argument('--batch_size', default=50, type=int, help='batch size')
 parser.add_argument('--subject', default='A', choices=['SAY', 'S', 'A', 'Y'], help='subject')
@@ -67,5 +67,4 @@ checkpoint = torch.load(ckpt_path)
 model.load_state_dict(checkpoint)
 
 # generate some samples
-n_samples = 32
-generate_samples(trainer, model, train_dataset, train_dataset.clusters, args.dict_size, n_samples)
+generate_samples(model, train_dataset, train_dataset.clusters, args.dict_size, 32)
