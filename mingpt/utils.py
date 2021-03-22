@@ -114,9 +114,12 @@ def make_dictionary(train_data, dict_size, d_img):
 
     return cluster_centers
 
-def generate_samples(model, train_dataset, cluster_centers, dict_size, n_samples):
+def generate_samples(model, train_dataset, n_samples):
     # to sample we also have to technically "train" a separate model for the first token in the sequence
     # we are going to do so below simply by calculating and normalizing the histogram of the first token
+    cluster_centers = train_dataset.clusters
+    dict_size = train_dataset.vocab_size
+
     counts = torch.ones(dict_size)  # start counts as 1 not zero, this is called "smoothing"
     rp = torch.randperm(len(train_dataset))
     nest = 5000  # how many images to use for the estimation
@@ -164,9 +167,13 @@ def generate_samples(model, train_dataset, cluster_centers, dict_size, n_samples
 
     plt.savefig('posemb.pdf', bbox_inches='tight')
 
-def generate_from_half(x, model, train_dataset, cluster_centers, dict_size):
+def generate_from_half(x, model, train_dataset):
+    """
+    Generate the lower half given the upper half.
+    """
+    cluster_centers = train_dataset.clusters
 
-    pixels_0 = sample(model, x[:, :1290].cuda(), 6, temperature=1.0, sample=True, top_k=100)
+    pixels_0 = sample(model, x[:, :1291].cuda(), 5, temperature=1.0, sample=True, top_k=100)
     pixels_1 = sample(model, x[:, :648].cuda(), 648, temperature=1.0, sample=True, top_k=100)
     pixels_2 = sample(model, x[:, :648].cuda(), 648, temperature=1.0, sample=True, top_k=100)
     pixels_3 = sample(model, x[:, :648].cuda(), 648, temperature=1.0, sample=True, top_k=100)
@@ -180,38 +187,47 @@ def generate_from_half(x, model, train_dataset, cluster_centers, dict_size):
     plt.figure(figsize=(16, 16))
     for i in range(5):
         pxi = pixels_0[i][iperm]  # note: undo the encoding permutation
-        print(pxi)
+        gen_img = cluster_centers[pxi].view(train_dataset.d_img, train_dataset.d_img, 3).numpy().astype(np.uint8)
+        gen_img[18, :, :] = 0
         
         plt.subplot(nrow, ncol, i+1)
-        plt.imshow(cluster_centers[pxi].contiguous().view(train_dataset.d_img, train_dataset.d_img, 3).numpy().astype(np.uint8))
+        plt.imshow(gen_img)
         plt.axis('off')
 
     for i in range(5):
         pxi = pixels_1[i][iperm] # note: undo the encoding permutation
-        
+        gen_img = cluster_centers[pxi].view(train_dataset.d_img, train_dataset.d_img, 3).numpy().astype(np.uint8)
+        gen_img[18, :, :] = 0
+
         plt.subplot(nrow, ncol, i+1+5)
-        plt.imshow(cluster_centers[pxi].contiguous().view(train_dataset.d_img, train_dataset.d_img, 3).numpy().astype(np.uint8))
+        plt.imshow(gen_img)
         plt.axis('off')
 
     for i in range(5):
         pxi = pixels_2[i][iperm] # note: undo the encoding permutation
-        
+        gen_img = cluster_centers[pxi].view(train_dataset.d_img, train_dataset.d_img, 3).numpy().astype(np.uint8)
+        gen_img[18, :, :] = 0
+
         plt.subplot(nrow, ncol, i+1+10)
-        plt.imshow(cluster_centers[pxi].contiguous().view(train_dataset.d_img, train_dataset.d_img, 3).numpy().astype(np.uint8))
+        plt.imshow(gen_img)
         plt.axis('off')
 
     for i in range(5):
         pxi = pixels_3[i][iperm] # note: undo the encoding permutation
+        gen_img = cluster_centers[pxi].view(train_dataset.d_img, train_dataset.d_img, 3).numpy().astype(np.uint8)
+        gen_img[18, :, :] = 0
         
         plt.subplot(nrow, ncol, i+1+15)
-        plt.imshow(cluster_centers[pxi].contiguous().view(train_dataset.d_img, train_dataset.d_img, 3).numpy().astype(np.uint8))
+        plt.imshow(gen_img)
         plt.axis('off')
 
     for i in range(5):
         pxi = pixels_4[i][iperm] # note: undo the encoding permutation
+        gen_img = cluster_centers[pxi].view(train_dataset.d_img, train_dataset.d_img, 3).numpy().astype(np.uint8)
+        gen_img[18, :, :] = 0
         
         plt.subplot(nrow, ncol, i+1+20)
-        plt.imshow(cluster_centers[pxi].contiguous().view(train_dataset.d_img, train_dataset.d_img, 3).numpy().astype(np.uint8))
+        plt.imshow(gen_img)
         plt.axis('off')
 
     plt.savefig('samples_from_half.pdf', bbox_inches='tight')

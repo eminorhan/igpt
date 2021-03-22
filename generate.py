@@ -30,7 +30,7 @@ if torch.cuda.is_available():
 
 # # generate some samples
 # print("Generating samples")
-# generate_samples(model, train_dataset, train_dataset.clusters, train_dataset.vocab_size, 32)
+# generate_samples(model, train_dataset, 32)
 
 # generate samples from half
 print("Generating samples from half")
@@ -39,5 +39,4 @@ x_dataset = ImageDataset(x_data, train_dataset.d_img, train_dataset.clusters)
 x_loader = DataLoader(x_dataset, shuffle=True, pin_memory=True, batch_size=5, num_workers=8)
 
 for _, (x, _) in enumerate(x_loader):
-    print(x)
-    generate_from_half(x, model, train_dataset, train_dataset.clusters, train_dataset.vocab_size)
+    generate_from_half(x, model, train_dataset)

@@ -67,4 +67,4 @@ checkpoint = torch.load(ckpt_path)
 model.load_state_dict(checkpoint)
 
 # generate some samples
-generate_samples(model, train_dataset, train_dataset.clusters, args.dict_size, 32)
+generate_samples(model, train_dataset, 32)
