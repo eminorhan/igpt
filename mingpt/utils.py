@@ -166,7 +166,7 @@ def generate_samples(model, train_dataset, cluster_centers, dict_size, n_samples
 
 def generate_from_half(x, model, train_dataset, cluster_centers, dict_size):
 
-    pixels_0 = sample(model, x[:, :-2].cuda(), 2, temperature=1.0, sample=True, top_k=100)
+    pixels_0 = sample(model, x[:, :1290].cuda(), 6, temperature=1.0, sample=True, top_k=100)
     pixels_1 = sample(model, x[:, :648].cuda(), 648, temperature=1.0, sample=True, top_k=100)
     pixels_2 = sample(model, x[:, :648].cuda(), 648, temperature=1.0, sample=True, top_k=100)
     pixels_3 = sample(model, x[:, :648].cuda(), 648, temperature=1.0, sample=True, top_k=100)
@@ -179,7 +179,7 @@ def generate_from_half(x, model, train_dataset, cluster_centers, dict_size):
     nrow = 25 // ncol
     plt.figure(figsize=(16, 16))
     for i in range(5):
-        pxi = pixels_1[i][iperm]  # note: undo the encoding permutation
+        pxi = pixels_0[i][iperm]  # note: undo the encoding permutation
         print(pxi)
         
         plt.subplot(nrow, ncol, i+1)
