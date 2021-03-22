@@ -1,9 +1,12 @@
 import argparse
 import torch
-from mingpt.utils import generate_samples
+import torchvision
+from mingpt.utils import ImageDataset, generate_from_half
 from mingpt.model import GPT, GPTConfig 
+from torch.utils.data.dataloader import DataLoader
 
 parser = argparse.ArgumentParser(description='Generate samples from an Image GPT')
+parser.add_argument('data', metavar='DIR', help='path to half frames')
 parser.add_argument('--data_cache', default='', type=str, help='Cache path for the stored training set')
 parser.add_argument('--model_cache', default='', type=str, help='Cache path for the stored model')
 
@@ -25,6 +28,16 @@ model.load_state_dict(model_ckpt)
 if torch.cuda.is_available():
     model = model.cuda()
 
-# generate some samples
-print("Generating samples")
-generate_samples(model, train_dataset, train_dataset.clusters, train_dataset.vocab_size, 32)
+# # generate some samples
+# print("Generating samples")
+# generate_samples(model, train_dataset, train_dataset.clusters, train_dataset.vocab_size, 32)
+
+# generate samples from half
+print("Generating samples from half")
+x_data = torchvision.datasets.ImageFolder(args.data, torchvision.transforms.Resize(train_dataset.d_img))
+x_dataset = ImageDataset(x_data, train_dataset.d_img, train_dataset.clusters)
+x_loader = DataLoader(x_dataset, shuffle=True, pin_memory=True, batch_size=5, num_workers=8)
+
+for _, (x, _) in enumerate(x_loader):
+    print(x)
+    generate_from_half(x, model, train_dataset, train_dataset.clusters, train_dataset.vocab_size)

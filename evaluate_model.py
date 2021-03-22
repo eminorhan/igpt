@@ -2,6 +2,7 @@ import time
 import argparse
 import torch
 import torchvision
+import numpy as np
 from mingpt.utils import ImageDataset, ImageDatasetWithLabels, generate_samples
 from mingpt.model import GPT, GPTConfig, MeanLayer 
 from torch.utils.data.dataloader import DataLoader
@@ -11,9 +12,9 @@ parser.add_argument('data', metavar='DIR', help='path to labeled S frames')
 parser.add_argument('--traindata_cache', default='', type=str, help='Cache path for the stored training set')
 parser.add_argument('--model_cache', default='', type=str, help='Cache path for the stored model')
 parser.add_argument('--num_classes', default=26, type=int, help='Number of classes in downstream classification task')
-parser.add_argument('--batch_size', default=64, type=int, help='batch size')
-parser.add_argument('--epochs', default=25, type=int, help='epochs')
-parser.add_argument('--probe_layer', default=7, type=int, help='probe layer', choices=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+parser.add_argument('--batch_size', default=128, type=int, help='batch size')
+parser.add_argument('--epochs', default=100, type=int, help='epochs')
+parser.add_argument('--probe_layer', default=10, type=int, help='probe layer', choices=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
 
 
 def freeze_trunk(model):
@@ -23,8 +24,6 @@ def freeze_trunk(model):
 
 
 def load_split_train_test(labeled_s_dataset, batch_size, subsample=False, workers=8, train_frac=0.5):
-
-    import numpy as np
 
     num_train = len(labeled_s_dataset)
 
@@ -216,7 +215,7 @@ if __name__ == '__main__':
     freeze_trunk(model)
 
     if torch.cuda.is_available():
-        model = model.cuda()
+        model = torch.nn.DataParallel(model).cuda()
 
     train_loader, test_loader = load_split_train_test(labeled_s_dataset, args.batch_size)
     acc1_list = []
@@ -228,7 +227,7 @@ if __name__ == '__main__':
 
     optimizer = torch.optim.Adam(model.parameters(), 0.0005, weight_decay=0.0)
 
-    for epoch in range(1, args.epochs):
+    for epoch in range(1, args.epochs+1):
         # train for one epoch
         acc1 = train(train_loader, model, criterion, optimizer, epoch)
         acc1_list.append(acc1)
