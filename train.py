@@ -3,24 +3,23 @@ import argparse
 import logging
 import torch
 import torchvision
-import numpy as np
 from mingpt.utils import ImageDataset, make_dictionary, set_seed, generate_samples
 from mingpt.model import GPT, GPTConfig 
 from mingpt.trainer import Trainer, TrainerConfig
-import torchvision.transforms as transforms
 
 parser = argparse.ArgumentParser(description='Train an Image GPT on SAYCam')
 parser.add_argument('data', metavar='DIR', help='path to SAYCam frames')
 parser.add_argument('--save_dir', default='', type=str, help='model save directory')
-parser.add_argument('--d_img', default=36, type=int, help='image size (pixels)')
-parser.add_argument('--dict_size', default=384, type=int, help='dictionary size')
-parser.add_argument('--n_layer', default=12, type=int, help='number of layers')
+parser.add_argument('--d_img', default=48, type=int, help='image size (pixels)')
+parser.add_argument('--dict_size', default=512, type=int, help='dictionary size')
+parser.add_argument('--n_layer', default=24, type=int, help='number of layers')
 parser.add_argument('--n_head', default=8, type=int, help='number of attention heads')
 parser.add_argument('--n_embd', default=512, type=int, help='embedding dimensionality')
 parser.add_argument('--epochs', default=10, type=int, help='number of training epochs')
-parser.add_argument('--batch_size', default=50, type=int, help='batch size')
+parser.add_argument('--batch_size', default=32, type=int, help='batch size')
 parser.add_argument('--subject', default='A', choices=['SAY', 'S', 'A', 'Y'], help='subject')
 parser.add_argument('--data_cache', default='', type=str, help='Cache path for the training set for quicker initialization')
+parser.add_argument('--resume', default='', type=str, help='Model path for resuming training')
 
 args = parser.parse_args()
 print(args)
@@ -35,7 +34,7 @@ if args.data_cache and os.path.exists(args.data_cache):
     train_dataset = torch.load(args.data_cache)
 else:
     print("Building training dataset from scratch")
-    train_data = torchvision.datasets.ImageFolder(args.data, transforms.Resize(args.d_img))
+    train_data = torchvision.datasets.ImageFolder(args.data, torchvision.transforms.Resize(args.d_img))
     cluster_centers = make_dictionary(train_data, args.dict_size, args.d_img)
     train_dataset = ImageDataset(train_data, args.d_img, cluster_centers)
     torch.save(train_dataset, args.data_cache)
@@ -50,6 +49,13 @@ print('Example flattened image:', train_dataset[0][0])  # one example image flat
 mconf = GPTConfig(train_dataset.vocab_size, train_dataset.block_size, embd_pdrop=0.0, resid_pdrop=0.0, attn_pdrop=0.0, 
                 n_layer=args.n_layer, n_head=args.n_head, n_embd=args.n_embd)
 model = GPT(mconf)
+
+if args.resume:
+    if os.path.isfile(args.resume):
+        print("=> loading checkpoint at '{}'".format(args.resume))
+        model.load_state_dict(torch.load(args.resume))
+    else:
+        print("=> no checkpoint found at '{}', will train from scratch".format(args.resume))
 
 tokens_per_epoch = len(train_dataset) * train_dataset.block_size
 

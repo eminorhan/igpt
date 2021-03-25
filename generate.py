@@ -6,9 +6,9 @@ from mingpt.model import GPT, GPTConfig
 from torch.utils.data.dataloader import DataLoader
 
 parser = argparse.ArgumentParser(description='Generate samples from an Image GPT')
-parser.add_argument('data', metavar='DIR', help='path to half frames')
 parser.add_argument('--data_cache', default='', type=str, help='Cache path for the stored training set')
 parser.add_argument('--model_cache', default='', type=str, help='Cache path for the stored model')
+parser.add_argument('--condition', default='uncond', type=str, help='Generation condition', choices=['uncond', 'half'])
 
 args = parser.parse_args()
 print(args)
@@ -28,15 +28,17 @@ model.load_state_dict(model_ckpt)
 if torch.cuda.is_available():
     model = model.cuda()
 
-# # generate some samples
-# print("Generating samples")
-# generate_samples(model, train_dataset, 32)
+if args.condition == 'uncond':
+    # generate some samples unconditionally
+    print("Generating unconditional samples")
+    generate_samples(model, train_dataset, 32)
+elif args.condition == 'half':
+    # generate samples conditioned on upper half
+    img_dir = '/scratch/eo41/minGPT/frames_for_half'
+    print("Generating samples from upper half of images at {}".format(img_dir))
+    x_data = torchvision.datasets.ImageFolder(img_dir, torchvision.transforms.Resize(train_dataset.d_img))
+    x_dataset = ImageDataset(x_data, train_dataset.d_img, train_dataset.clusters)
+    x_loader = DataLoader(x_dataset, shuffle=True, pin_memory=True, batch_size=5, num_workers=8)  # TODO: better way to handle the parameters here
 
-# generate samples from half
-print("Generating samples from half")
-x_data = torchvision.datasets.ImageFolder(args.data, torchvision.transforms.Resize(train_dataset.d_img))
-x_dataset = ImageDataset(x_data, train_dataset.d_img, train_dataset.clusters)
-x_loader = DataLoader(x_dataset, shuffle=True, pin_memory=True, batch_size=5, num_workers=8)
-
-for _, (x, _) in enumerate(x_loader):
-    generate_from_half(x, model, train_dataset)
+    for _, (x, _) in enumerate(x_loader):
+        generate_from_half(x, model, train_dataset)
