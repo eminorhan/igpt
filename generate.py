@@ -1,14 +1,14 @@
 import argparse
 import torch
 import torchvision
-from mingpt.utils import ImageDataset, generate_from_half
+from mingpt.utils import ImageDataset, generate_samples, generate_from_half, generate_chimera
 from mingpt.model import GPT, GPTConfig 
 from torch.utils.data.dataloader import DataLoader
 
 parser = argparse.ArgumentParser(description='Generate samples from an Image GPT')
 parser.add_argument('--data_cache', default='', type=str, help='Cache path for the stored training set')
 parser.add_argument('--model_cache', default='', type=str, help='Cache path for the stored model')
-parser.add_argument('--condition', default='uncond', type=str, help='Generation condition', choices=['uncond', 'half'])
+parser.add_argument('--condition', default='chimera', type=str, help='Generation condition', choices=['uncond', 'half', 'chimera'])
 
 args = parser.parse_args()
 print(args)
@@ -32,13 +32,13 @@ if args.condition == 'uncond':
     # generate some samples unconditionally
     print("Generating unconditional samples")
     generate_samples(model, train_dataset, 32)
-elif args.condition == 'half':
+elif args.condition == 'half' or args.condition == 'chimera':
     # generate samples conditioned on upper half
-    img_dir = '/scratch/eo41/minGPT/frames_for_half'
+    img_dir = '/scratch/eo41/minGPT/frames_for_half_3'
     print("Generating samples from upper half of images at {}".format(img_dir))
-    x_data = torchvision.datasets.ImageFolder(img_dir, torchvision.transforms.Resize(train_dataset.d_img))
+    x_data = torchvision.datasets.ImageFolder(img_dir, torchvision.transforms.Resize((train_dataset.d_img, train_dataset.d_img)))
     x_dataset = ImageDataset(x_data, train_dataset.d_img, train_dataset.clusters)
-    x_loader = DataLoader(x_dataset, shuffle=True, pin_memory=True, batch_size=5, num_workers=8)  # TODO: better way to handle the parameters here
+    x_loader = DataLoader(x_dataset, shuffle=True, pin_memory=True, batch_size=6, num_workers=8)  # TODO: better way to handle the parameters here
 
     for _, (x, _) in enumerate(x_loader):
         generate_from_half(x, model, train_dataset)

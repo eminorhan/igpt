@@ -173,11 +173,109 @@ def generate_from_half(x, model, train_dataset):
     """
     cluster_centers = train_dataset.clusters
 
+    pixels_0 = sample(model, x[:, :1291].cuda(), 5, temperature=1.9, sample=True, top_k=100)
+    with torch.no_grad():
+        _, losses_0 = model(pixels_0[:, :-1].contiguous(), pixels_0[:, 1:].contiguous())
+
+    print(losses_0.cpu().numpy())
+
+    pixels_1 = sample(model, x[:, :648].cuda(), 648, temperature=1.9, sample=True, top_k=100)
+    with torch.no_grad():
+        _, losses_1 = model(pixels_1[:, :-1].contiguous(), pixels_1[:, 1:].contiguous())
+
+    pixels_2 = sample(model, x[:, :648].cuda(), 648, temperature=1.9, sample=True, top_k=100)
+    with torch.no_grad():
+        _, losses_2 = model(pixels_2[:, :-1].contiguous(), pixels_2[:, 1:].contiguous())
+
+    pixels_3 = sample(model, x[:, :648].cuda(), 648, temperature=1.9, sample=True, top_k=100)
+    with torch.no_grad():
+        _, losses_3 = model(pixels_3[:, :-1].contiguous(), pixels_3[:, 1:].contiguous())
+
+    pixels_4 = sample(model, x[:, :648].cuda(), 648, temperature=1.9, sample=True, top_k=100)
+    with torch.no_grad():
+        _, losses_4 = model(pixels_4[:, :-1].contiguous(), pixels_4[:, 1:].contiguous())
+
+    # for visualization we have to invert the permutation used to produce the pixels
+    iperm = torch.argsort(train_dataset.perm)
+
+    ncol = 6
+    nrow = 30 // ncol
+    plt.figure(figsize=(16, 16))
+    for i in range(6):
+        pxi = pixels_0[i][iperm]  # note: undo the encoding permutation
+        gen_img = cluster_centers[pxi].view(train_dataset.d_img, train_dataset.d_img, 3).numpy().astype(np.uint8)
+        gen_img[17, :, :] = 0
+        
+        plt.subplot(nrow, ncol, i+1)
+        plt.imshow(gen_img)
+        plt.title(str(losses_0.cpu().numpy()[i])[:6])
+        plt.axis('off')
+
+    for i in range(6):
+        pxi = pixels_1[i][iperm] # note: undo the encoding permutation
+        gen_img = cluster_centers[pxi].view(train_dataset.d_img, train_dataset.d_img, 3).numpy().astype(np.uint8)
+        gen_img[17, :, :] = 0
+
+        plt.subplot(nrow, ncol, i+1+6)
+        plt.imshow(gen_img)
+        plt.title(str(losses_1.cpu().numpy()[i])[:6])
+        plt.axis('off')
+
+    for i in range(6):
+        pxi = pixels_2[i][iperm] # note: undo the encoding permutation
+        gen_img = cluster_centers[pxi].view(train_dataset.d_img, train_dataset.d_img, 3).numpy().astype(np.uint8)
+        gen_img[17, :, :] = 0
+
+        plt.subplot(nrow, ncol, i+1+12)
+        plt.imshow(gen_img)
+        plt.title(str(losses_2.cpu().numpy()[i])[:6])
+        plt.axis('off')
+
+    for i in range(6):
+        pxi = pixels_3[i][iperm] # note: undo the encoding permutation
+        gen_img = cluster_centers[pxi].view(train_dataset.d_img, train_dataset.d_img, 3).numpy().astype(np.uint8)
+        gen_img[17, :, :] = 0
+        
+        plt.subplot(nrow, ncol, i+1+18)
+        plt.imshow(gen_img)
+        plt.title(str(losses_3.cpu().numpy()[i])[:6])
+        plt.axis('off')
+
+    for i in range(6):
+        pxi = pixels_4[i][iperm] # note: undo the encoding permutation
+        gen_img = cluster_centers[pxi].view(train_dataset.d_img, train_dataset.d_img, 3).numpy().astype(np.uint8)
+        gen_img[17, :, :] = 0
+        
+        plt.subplot(nrow, ncol, i+1+24)
+        plt.imshow(gen_img)
+        plt.title(str(losses_4.cpu().numpy()[i])[:6])
+        plt.axis('off')
+
+    plt.savefig('samples_from_half.pdf', bbox_inches='tight')
+
+def generate_chimera(x, model, train_dataset):
+    """
+    Generate chimera
+    """
+    cluster_centers = train_dataset.clusters
+
     pixels_0 = sample(model, x[:, :1291].cuda(), 5, temperature=1.0, sample=True, top_k=100)
     pixels_1 = sample(model, x[:, :648].cuda(), 648, temperature=1.0, sample=True, top_k=100)
-    pixels_2 = sample(model, x[:, :648].cuda(), 648, temperature=1.0, sample=True, top_k=100)
-    pixels_3 = sample(model, x[:, :648].cuda(), 648, temperature=1.0, sample=True, top_k=100)
-    pixels_4 = sample(model, x[:, :648].cuda(), 648, temperature=1.0, sample=True, top_k=100)
+
+    print(pixels_0.shape, pixels_1.shape)
+
+    imgs, losses = [], []
+
+    for i in range(5):
+        for j in range(5):
+            print(i, j)
+            x = torch.unsqueeze(torch.cat((pixels_0[i, :648], pixels_1[j, 648:])), 0)
+            with torch.no_grad():
+                logits, loss = model(x[:, :-1], x[:, 1:])
+                loss = loss.item()
+
+            imgs.append(torch.squeeze(x, 0))
+            losses.append(loss)
 
     # for visualization we have to invert the permutation used to produce the pixels
     iperm = torch.argsort(train_dataset.perm)
@@ -185,49 +283,14 @@ def generate_from_half(x, model, train_dataset):
     ncol = 5
     nrow = 25 // ncol
     plt.figure(figsize=(16, 16))
-    for i in range(5):
-        pxi = pixels_0[i][iperm]  # note: undo the encoding permutation
+    for i in range(25):
+        pxi = imgs[i][iperm]  # note: undo the encoding permutation
         gen_img = cluster_centers[pxi].view(train_dataset.d_img, train_dataset.d_img, 3).numpy().astype(np.uint8)
         gen_img[18, :, :] = 0
         
         plt.subplot(nrow, ncol, i+1)
         plt.imshow(gen_img)
+        plt.title(str(losses[i])[:6])
         plt.axis('off')
 
-    for i in range(5):
-        pxi = pixels_1[i][iperm] # note: undo the encoding permutation
-        gen_img = cluster_centers[pxi].view(train_dataset.d_img, train_dataset.d_img, 3).numpy().astype(np.uint8)
-        gen_img[18, :, :] = 0
-
-        plt.subplot(nrow, ncol, i+1+5)
-        plt.imshow(gen_img)
-        plt.axis('off')
-
-    for i in range(5):
-        pxi = pixels_2[i][iperm] # note: undo the encoding permutation
-        gen_img = cluster_centers[pxi].view(train_dataset.d_img, train_dataset.d_img, 3).numpy().astype(np.uint8)
-        gen_img[18, :, :] = 0
-
-        plt.subplot(nrow, ncol, i+1+10)
-        plt.imshow(gen_img)
-        plt.axis('off')
-
-    for i in range(5):
-        pxi = pixels_3[i][iperm] # note: undo the encoding permutation
-        gen_img = cluster_centers[pxi].view(train_dataset.d_img, train_dataset.d_img, 3).numpy().astype(np.uint8)
-        gen_img[18, :, :] = 0
-        
-        plt.subplot(nrow, ncol, i+1+15)
-        plt.imshow(gen_img)
-        plt.axis('off')
-
-    for i in range(5):
-        pxi = pixels_4[i][iperm] # note: undo the encoding permutation
-        gen_img = cluster_centers[pxi].view(train_dataset.d_img, train_dataset.d_img, 3).numpy().astype(np.uint8)
-        gen_img[18, :, :] = 0
-        
-        plt.subplot(nrow, ncol, i+1+20)
-        plt.imshow(gen_img)
-        plt.axis('off')
-
-    plt.savefig('samples_from_half.pdf', bbox_inches='tight')
+    plt.savefig('samples_chimera.pdf', bbox_inches='tight')

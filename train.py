@@ -49,23 +49,22 @@ print('Example flattened image:', train_dataset[0][0])  # one example image flat
 mconf = GPTConfig(train_dataset.vocab_size, train_dataset.block_size, embd_pdrop=0.0, resid_pdrop=0.0, attn_pdrop=0.0, 
                 n_layer=args.n_layer, n_head=args.n_head, n_embd=args.n_embd)
 model = GPT(mconf)
+optimizer = torch.optim.Adam(model.parameters(), 0.0005, weight_decay=0.0)
 
 if args.resume:
     if os.path.isfile(args.resume):
         print("=> loading checkpoint at '{}'".format(args.resume))
-        model.load_state_dict(torch.load(args.resume))
+        checkpoint = torch.load(args.resume)
+        model.load_state_dict(checkpoint['model_state_dict'])
+        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
     else:
         print("=> no checkpoint found at '{}', will train from scratch".format(args.resume))
 
 tokens_per_epoch = len(train_dataset) * train_dataset.block_size
 
 # initialize a trainer instance and kick off training
-tconf = TrainerConfig(max_epochs=args.epochs, batch_size=args.batch_size, learning_rate=3e-3,
-                    betas = (0.9, 0.95), weight_decay=0,
-                    lr_decay=True, warmup_tokens=tokens_per_epoch, final_tokens=args.epochs*tokens_per_epoch,
-                    ckpt_path=ckpt_path,
-                    num_workers=8)
-trainer = Trainer(model, train_dataset, None, tconf)
+tconf = TrainerConfig(max_epochs=args.epochs, batch_size=args.batch_size, ckpt_path=ckpt_path, num_workers=8)
+trainer = Trainer(model, optimizer, train_dataset, None, tconf)
 trainer.train()
 
 # load the state of the best model we've seen based on early stopping
