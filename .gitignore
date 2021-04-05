@@ -3,10 +3,10 @@
 *.pt
 *.pth
 *.jpeg
+*.jpg
 
 # Directories
-__pycache__/
-data_model_cache/
-saycam/
-saycam_labeled/
-frames_for_half/
+/__pycache__
+/data_model_cache
+/saycam*
+/frames*

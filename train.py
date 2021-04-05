@@ -12,11 +12,11 @@ parser.add_argument('data', metavar='DIR', help='path to SAYCam frames')
 parser.add_argument('--save_dir', default='', type=str, help='model save directory')
 parser.add_argument('--d_img', default=48, type=int, help='image size (pixels)')
 parser.add_argument('--dict_size', default=512, type=int, help='dictionary size')
-parser.add_argument('--n_layer', default=24, type=int, help='number of layers')
+parser.add_argument('--n_layer', default=12, type=int, help='number of layers')
 parser.add_argument('--n_head', default=8, type=int, help='number of attention heads')
 parser.add_argument('--n_embd', default=512, type=int, help='embedding dimensionality')
-parser.add_argument('--epochs', default=10, type=int, help='number of training epochs')
-parser.add_argument('--batch_size', default=32, type=int, help='batch size')
+parser.add_argument('--epochs', default=100, type=int, help='number of training epochs')
+parser.add_argument('--batch_size', default=28, type=int, help='batch size')
 parser.add_argument('--subject', default='A', choices=['SAY', 'S', 'A', 'Y'], help='subject')
 parser.add_argument('--data_cache', default='', type=str, help='Cache path for the training set for quicker initialization')
 parser.add_argument('--resume', default='', type=str, help='Model path for resuming training')
@@ -26,7 +26,7 @@ print(args)
 
 set_seed(42)
 
-ckpt_path = os.path.join(args.save_dir, 'model_{}.pt'.format(args.subject))
+ckpt_path = os.path.join(args.save_dir, 'model_12l_8h_512e_32b_{}.pt'.format(args.subject))
 logging.basicConfig(format="%(asctime)s - %(levelname)s - %(name)s - %(message)s", datefmt="%m/%d/%Y %H:%M:%S", level=logging.INFO)
 
 if args.data_cache and os.path.exists(args.data_cache):
@@ -49,13 +49,14 @@ print('Example flattened image:', train_dataset[0][0])  # one example image flat
 mconf = GPTConfig(train_dataset.vocab_size, train_dataset.block_size, embd_pdrop=0.0, resid_pdrop=0.0, attn_pdrop=0.0, 
                 n_layer=args.n_layer, n_head=args.n_head, n_embd=args.n_embd)
 model = GPT(mconf)
+model = torch.nn.DataParallel(model).cuda()
 optimizer = torch.optim.Adam(model.parameters(), 0.0005, weight_decay=0.0)
 
 if args.resume:
     if os.path.isfile(args.resume):
         print("=> loading checkpoint at '{}'".format(args.resume))
         checkpoint = torch.load(args.resume)
-        model.load_state_dict(checkpoint['model_state_dict'])
+        model.module.load_state_dict(checkpoint['model_state_dict'])
         optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
     else:
         print("=> no checkpoint found at '{}', will train from scratch".format(args.resume))

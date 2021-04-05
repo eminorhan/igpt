@@ -172,28 +172,12 @@ def generate_from_half(x, model, train_dataset):
     Generate the lower half given the upper half.
     """
     cluster_centers = train_dataset.clusters
-
-    pixels_0 = sample(model, x[:, :1291].cuda(), 5, temperature=1.9, sample=True, top_k=100)
-    with torch.no_grad():
-        _, losses_0 = model(pixels_0[:, :-1].contiguous(), pixels_0[:, 1:].contiguous())
-
-    print(losses_0.cpu().numpy())
-
-    pixels_1 = sample(model, x[:, :648].cuda(), 648, temperature=1.9, sample=True, top_k=100)
-    with torch.no_grad():
-        _, losses_1 = model(pixels_1[:, :-1].contiguous(), pixels_1[:, 1:].contiguous())
-
-    pixels_2 = sample(model, x[:, :648].cuda(), 648, temperature=1.9, sample=True, top_k=100)
-    with torch.no_grad():
-        _, losses_2 = model(pixels_2[:, :-1].contiguous(), pixels_2[:, 1:].contiguous())
-
-    pixels_3 = sample(model, x[:, :648].cuda(), 648, temperature=1.9, sample=True, top_k=100)
-    with torch.no_grad():
-        _, losses_3 = model(pixels_3[:, :-1].contiguous(), pixels_3[:, 1:].contiguous())
-
-    pixels_4 = sample(model, x[:, :648].cuda(), 648, temperature=1.9, sample=True, top_k=100)
-    with torch.no_grad():
-        _, losses_4 = model(pixels_4[:, :-1].contiguous(), pixels_4[:, 1:].contiguous())
+    # TODO: better handle size here
+    pixels_0 = sample(model, x[:, :2300].cuda(), 4, temperature=0.95, sample=True, top_k=100)
+    pixels_1 = sample(model, x[:, :1152].cuda(), 1152, temperature=0.95, sample=True, top_k=100)
+    pixels_2 = sample(model, x[:, :1152].cuda(), 1152, temperature=0.95, sample=True, top_k=100)
+    pixels_3 = sample(model, x[:, :1152].cuda(), 1152, temperature=0.95, sample=True, top_k=100)
+    pixels_4 = sample(model, x[:, :1152].cuda(), 1152, temperature=0.95, sample=True, top_k=100)
 
     # for visualization we have to invert the permutation used to produce the pixels
     iperm = torch.argsort(train_dataset.perm)
@@ -203,52 +187,47 @@ def generate_from_half(x, model, train_dataset):
     plt.figure(figsize=(16, 16))
     for i in range(6):
         pxi = pixels_0[i][iperm]  # note: undo the encoding permutation
-        gen_img = cluster_centers[pxi].view(train_dataset.d_img, train_dataset.d_img, 3).numpy().astype(np.uint8)
-        gen_img[17, :, :] = 0
+        gen_img = cluster_centers[pxi].view(train_dataset.d_img, train_dataset.d_img, 3).cpu().numpy().astype(np.uint8)
+        gen_img[23, :, :] = 0
         
         plt.subplot(nrow, ncol, i+1)
         plt.imshow(gen_img)
-        plt.title(str(losses_0.cpu().numpy()[i])[:6])
         plt.axis('off')
 
     for i in range(6):
         pxi = pixels_1[i][iperm] # note: undo the encoding permutation
         gen_img = cluster_centers[pxi].view(train_dataset.d_img, train_dataset.d_img, 3).numpy().astype(np.uint8)
-        gen_img[17, :, :] = 0
+        gen_img[23, :, :] = 0
 
         plt.subplot(nrow, ncol, i+1+6)
         plt.imshow(gen_img)
-        plt.title(str(losses_1.cpu().numpy()[i])[:6])
         plt.axis('off')
 
     for i in range(6):
         pxi = pixels_2[i][iperm] # note: undo the encoding permutation
         gen_img = cluster_centers[pxi].view(train_dataset.d_img, train_dataset.d_img, 3).numpy().astype(np.uint8)
-        gen_img[17, :, :] = 0
+        gen_img[23, :, :] = 0
 
         plt.subplot(nrow, ncol, i+1+12)
         plt.imshow(gen_img)
-        plt.title(str(losses_2.cpu().numpy()[i])[:6])
         plt.axis('off')
 
     for i in range(6):
         pxi = pixels_3[i][iperm] # note: undo the encoding permutation
         gen_img = cluster_centers[pxi].view(train_dataset.d_img, train_dataset.d_img, 3).numpy().astype(np.uint8)
-        gen_img[17, :, :] = 0
+        gen_img[23, :, :] = 0
         
         plt.subplot(nrow, ncol, i+1+18)
         plt.imshow(gen_img)
-        plt.title(str(losses_3.cpu().numpy()[i])[:6])
         plt.axis('off')
 
     for i in range(6):
         pxi = pixels_4[i][iperm] # note: undo the encoding permutation
         gen_img = cluster_centers[pxi].view(train_dataset.d_img, train_dataset.d_img, 3).numpy().astype(np.uint8)
-        gen_img[17, :, :] = 0
+        gen_img[23, :, :] = 0
         
         plt.subplot(nrow, ncol, i+1+24)
         plt.imshow(gen_img)
-        plt.title(str(losses_4.cpu().numpy()[i])[:6])
         plt.axis('off')
 
     plt.savefig('samples_from_half.pdf', bbox_inches='tight')

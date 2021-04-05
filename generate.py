@@ -17,7 +17,7 @@ print(args)
 train_dataset = torch.load(args.data_cache)
 
 ## set up model (TODO: better way to handle the model config)
-mconf = GPTConfig(train_dataset.vocab_size, train_dataset.block_size, embd_pdrop=0.0, resid_pdrop=0.0, attn_pdrop=0.0, n_layer=12, n_head=8, n_embd=512)
+mconf = GPTConfig(train_dataset.vocab_size, train_dataset.block_size, embd_pdrop=0.0, resid_pdrop=0.0, attn_pdrop=0.0, n_layer=24, n_head=8, n_embd=512)
 model = GPT(mconf)
 
 # load the model
@@ -34,7 +34,7 @@ if args.condition == 'uncond':
     generate_samples(model, train_dataset, 32)
 elif args.condition == 'half' or args.condition == 'chimera':
     # generate samples conditioned on upper half
-    img_dir = '/scratch/eo41/minGPT/frames_for_half_3'
+    img_dir = '/scratch/eo41/minGPT/frames_for_half_1'
     print("Generating samples from upper half of images at {}".format(img_dir))
     x_data = torchvision.datasets.ImageFolder(img_dir, torchvision.transforms.Resize((train_dataset.d_img, train_dataset.d_img)))
     x_dataset = ImageDataset(x_data, train_dataset.d_img, train_dataset.clusters)

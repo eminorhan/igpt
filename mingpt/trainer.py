@@ -19,7 +19,6 @@ class TrainerConfig:
     # optimization parameters
     max_epochs = 10
     batch_size = 64
-    grad_norm_clip = 10.0
     # checkpoint settings
     ckpt_path = None
     num_workers = 0 # for DataLoader
@@ -37,12 +36,6 @@ class Trainer:
         self.test_dataset = test_dataset
         self.config = config
 
-        # take over whatever gpus are on the system
-        self.device = 'cpu'
-        if torch.cuda.is_available():
-            self.device = torch.cuda.current_device()
-            self.model = torch.nn.DataParallel(self.model).to(self.device)
-
     def save_checkpoint(self):
         # DataParallel wrappers keep raw model object in .module attribute
         raw_model = self.model.module if hasattr(self.model, "module") else self.model
@@ -55,7 +48,6 @@ class Trainer:
     def train(self):
         model, optimizer, config = self.model, self.optimizer, self.config
         raw_model = model.module if hasattr(self.model, "module") else model
-        # optimizer = raw_model.configure_optimizers(config)  # TODO: better handling of optimizers
 
         def run_epoch(split):
             is_train = split == 'train'
@@ -70,8 +62,8 @@ class Trainer:
             for it, (x, y) in pbar:
 
                 # place data on the correct device
-                x = x.to(self.device)
-                y = y.to(self.device)
+                x = x.cuda()
+                y = y.cuda()
 
                 # forward the model
                 with torch.set_grad_enabled(is_train):
@@ -84,11 +76,10 @@ class Trainer:
                     # backprop and update the parameters
                     model.zero_grad()
                     loss.backward()
-                    torch.nn.utils.clip_grad_norm_(model.parameters(), config.grad_norm_clip)
                     optimizer.step()
 
                     # report progress
-                    pbar.set_description(f"epoch {epoch+1} iter {it}: train loss {loss.item():.5f}. lr {lr:e}")
+                    pbar.set_description(f"epoch {epoch+1} iter {it}: train loss {loss.item():.5f}")
 
             if not is_train:
                 test_loss = float(np.mean(losses))
