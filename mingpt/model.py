@@ -8,13 +8,10 @@ GPT model:
 """
 
 import math
-import logging
-
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
 
-logger = logging.getLogger(__name__)
 
 class GPTConfig:
     """ base GPT config, params common to all GPT versions """
@@ -127,7 +124,7 @@ class GPT(nn.Module):
         self.block_size = config.block_size
         self.apply(self._init_weights)
 
-        logger.info("number of parameters: %e", sum(p.numel() for p in self.parameters()))
+        print('Number of parameters:', sum(p.numel() for p in self.parameters()))
 
     def get_block_size(self):
         return self.block_size

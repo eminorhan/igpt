@@ -4,12 +4,10 @@ so nothing in this file really has anything to do with GPT specifically.
 """
 
 import math
-import logging
 import numpy as np
 import torch
 from torch.utils.data.dataloader import DataLoader
 
-logger = logging.getLogger(__name__)
 
 class TrainerConfig:
     # optimization parameters
@@ -37,7 +35,7 @@ class Trainer:
         # DataParallel wrappers keep raw model object in .module attribute
         raw_model = self.model.module if hasattr(self.model, "module") else self.model
         optimizer = self.optimizer
-        logger.info("saving %s", self.config.ckpt_path)
+        print('Saving ', self.config.ckpt_path)
         torch.save({'model_state_dict': raw_model.state_dict(), 'optimizer_state_dict': optimizer.state_dict()}, self.config.ckpt_path)
 
     def train(self):
@@ -77,7 +75,7 @@ class Trainer:
 
             if not is_train:
                 test_loss = float(np.mean(losses))
-                logger.info("test loss: %f", test_loss)
+                print('Test loss:', test_loss)
                 return test_loss
 
         best_loss = float('inf')

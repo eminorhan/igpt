@@ -1,6 +1,5 @@
 import os
 import argparse
-import logging
 import torch
 import torchvision
 from mingpt.utils import ImageDataset, make_dictionary, set_seed, generate_samples
@@ -27,7 +26,6 @@ print(args)
 set_seed(42)
 
 ckpt_path = os.path.join(args.save_dir, 'model_24l_8h_512e_32b_{}.pt'.format(args.subject))
-logging.basicConfig(format="%(asctime)s - %(levelname)s - %(name)s - %(message)s", datefmt="%m/%d/%Y %H:%M:%S", level=logging.INFO)
 
 if args.data_cache and os.path.exists(args.data_cache):
     print("Loading training dataset from {}".format(args.data_cache))
