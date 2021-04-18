@@ -11,10 +11,10 @@ parser.add_argument('data', metavar='DIR', help='path to SAYCam frames')
 parser.add_argument('--save_dir', default='', type=str, help='model save directory')
 parser.add_argument('--d_img', default=48, type=int, help='image size (pixels)')
 parser.add_argument('--dict_size', default=512, type=int, help='dictionary size')
-parser.add_argument('--n_layer', default=24, type=int, help='number of layers')
+parser.add_argument('--n_layer', default=12, type=int, help='number of layers')
 parser.add_argument('--n_head', default=8, type=int, help='number of attention heads')
 parser.add_argument('--n_embd', default=512, type=int, help='embedding dimensionality')
-parser.add_argument('--epochs', default=100, type=int, help='number of training epochs')
+parser.add_argument('--epochs', default=1000, type=int, help='number of training epochs')
 parser.add_argument('--batch_size', default=32, type=int, help='batch size')
 parser.add_argument('--subject', default='A', choices=['SAY', 'S', 'A', 'Y'], help='subject')
 parser.add_argument('--data_cache', default='', type=str, help='Cache path for the training set for quicker initialization')
@@ -25,17 +25,23 @@ print(args)
 
 set_seed(42)
 
-ckpt_path = os.path.join(args.save_dir, 'model_24l_8h_512e_32b_{}.pt'.format(args.subject))
+# TODO: better handling of saved filename
+ckpt_path = os.path.join(args.save_dir, 'ft_model_12l_8h_512e_32b_{}.pt'.format(args.subject))
 
-if args.data_cache and os.path.exists(args.data_cache):
-    print("Loading training dataset from {}".format(args.data_cache))
-    train_dataset = torch.load(args.data_cache)
-else:
-    print("Building training dataset from scratch")
-    train_data = torchvision.datasets.ImageFolder(args.data, torchvision.transforms.Resize(args.d_img))
-    cluster_centers = make_dictionary(train_data, args.dict_size, args.d_img)
-    train_dataset = ImageDataset(train_data, args.d_img, cluster_centers)
-    torch.save(train_dataset, args.data_cache)
+# TODO: add option to do finetuning on a different dataset
+# if args.data_cache and os.path.exists(args.data_cache):
+#     print("Loading training dataset from {}".format(args.data_cache))
+#     train_dataset = torch.load(args.data_cache)
+# else:
+#     print("Building training dataset from scratch")
+#     train_data = torchvision.datasets.ImageFolder(args.data, torchvision.transforms.RandomResizedCrop(args.d_img, scale=(0.8, 1)))
+#     cluster_centers = make_dictionary(train_data, args.dict_size, args.d_img)
+#     train_dataset = ImageDataset(train_data, args.d_img, cluster_centers)
+#     torch.save(train_dataset, args.data_cache)
+
+cached_train_dataset = torch.load(args.data_cache)
+train_data = torchvision.datasets.ImageFolder(args.data, torchvision.transforms.RandomResizedCrop(args.d_img, scale=(0.8, 1)))
+train_dataset = ImageDataset(train_data, args.d_img, cached_train_dataset.clusters)
 
 # some sanity checks
 print('Training data size:', len(train_dataset))
@@ -66,6 +72,7 @@ tconf = TrainerConfig(max_epochs=args.epochs, batch_size=args.batch_size, ckpt_p
 trainer = Trainer(model, optimizer, train_dataset, None, tconf)
 trainer.train()
 
+# TODO: we get a load error here.
 # load the state of the best model we've seen based on early stopping
 checkpoint = torch.load(ckpt_path)
 model.load_state_dict(checkpoint)

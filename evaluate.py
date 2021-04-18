@@ -4,7 +4,7 @@ import torch
 import torchvision
 import numpy as np
 from mingpt.utils import ImageDataset, ImageDatasetWithLabels, generate_samples
-from mingpt.model import GPT, GPTConfig, MeanLayer 
+from mingpt.model import GPT, GPTConfig, LinearProbeGPT 
 from torch.utils.data.dataloader import DataLoader
 
 parser = argparse.ArgumentParser(description='Evaluate model on eval data')
@@ -14,7 +14,7 @@ parser.add_argument('--model_cache', default='', type=str, help='Cache path for 
 parser.add_argument('--num_classes', default=26, type=int, help='Number of classes in downstream classification task')
 parser.add_argument('--batch_size', default=128, type=int, help='batch size')
 parser.add_argument('--epochs', default=100, type=int, help='epochs')
-parser.add_argument('--probe_layer', default=10, type=int, help='probe layer', choices=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+parser.add_argument('--probe_layer', default=5, type=int, help='probe layer', choices=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
 
 
 def freeze_trunk(model):
@@ -192,6 +192,7 @@ if __name__ == '__main__':
     print(args)
 
     # load the training data
+    print("Loading data")
     train_dataset = torch.load(args.traindata_cache)
 
     # build the labeled S dataset using the dictionary learned over training data
@@ -204,14 +205,15 @@ if __name__ == '__main__':
 
     # load the model
     print("Loading model")
-    model_ckpt = torch.load(args.model_cache)
-    model.load_state_dict(model_ckpt)
+    checkpoint = torch.load(args.model_cache)
+    model.load_state_dict(checkpoint['model_state_dict'])
 
     prly = args.probe_layer
-    layer_list = [model.tok_emb, model.drop, model.blocks[:prly], model.blocks[prly+1].ln1, model.blocks[prly+1].ln1, 
-                    MeanLayer(1), torch.nn.Linear(in_features=512, out_features=args.num_classes, bias=True)]  # TODO: better way to handle the model config
-                                                                                                            # 512 should be the same as n_embd
-    model = torch.nn.Sequential(*layer_list)
+    head = torch.nn.Linear(in_features=512, out_features=args.num_classes, bias=True)  # TODO: better way to handle the model config (512 should be the same as n_embd)
+    model = LinearProbeGPT(model.tok_emb, model.pos_emb, model.drop, model.blocks[:prly], model.blocks[prly+1].ln1, head)
+
+    print(model)
+    
     freeze_trunk(model)
 
     if torch.cuda.is_available():
@@ -236,4 +238,4 @@ if __name__ == '__main__':
     val_acc1, preds, target, images = validate(test_loader, model)
     val_acc1_list.append(val_acc1)
 
-    torch.save({'acc1_list': acc1_list, 'val_acc1_list': val_acc1_list}, 'testrun.tar')
+    torch.save({'acc1_list': acc1_list, 'val_acc1_list': val_acc1_list}, 'testrun2.tar')

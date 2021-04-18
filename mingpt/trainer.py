@@ -35,7 +35,7 @@ class Trainer:
         # DataParallel wrappers keep raw model object in .module attribute
         raw_model = self.model.module if hasattr(self.model, "module") else self.model
         optimizer = self.optimizer
-        print('Saving ', self.config.ckpt_path)
+        print('Saving to:', self.config.ckpt_path)
         torch.save({'model_state_dict': raw_model.state_dict(), 'optimizer_state_dict': optimizer.state_dict()}, self.config.ckpt_path)
 
     def train(self):
@@ -49,7 +49,7 @@ class Trainer:
             loader = DataLoader(data, shuffle=True, pin_memory=True, batch_size=config.batch_size, num_workers=config.num_workers)
 
             losses = []
-            print_freq = len(loader) // 100 
+            print_freq = max(1, len(loader) // 100)
 
             for it, (x, y) in enumerate(loader):
                 # place data on the correct device

@@ -107,7 +107,6 @@ class Block(nn.Module):
 
 class GPT(nn.Module):
     """  the full GPT language model, with a context size of block_size """
-
     def __init__(self, config):
         super().__init__()
 
@@ -140,11 +139,12 @@ class GPT(nn.Module):
 
     def forward(self, idx, targets=None):
         b, t = idx.size()
-        assert t <= self.block_size, "Cannot forward, model block size is exhausted."
+        assert t <= self.block_size, "Cannot forward, model block size is exhausted."    
 
         # forward the GPT model
         token_embeddings = self.tok_emb(idx) # each index maps to a (learnable) vector
         position_embeddings = self.pos_emb[:, :t, :] # each position maps to a (learnable) vector
+
         x = self.drop(token_embeddings + position_embeddings)
         x = self.blocks(x)
         x = self.ln_f(x)
@@ -156,3 +156,33 @@ class GPT(nn.Module):
             loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1))
 
         return logits, loss
+
+class LinearProbeGPT(nn.Module):
+    """  GPT with a linear classifier head attached """
+    def __init__(self, tok_emb, pos_emb, drop, blocks, ln_1, head):
+        super().__init__()
+
+        # input embedding stem
+        self.tok_emb = tok_emb
+        self.pos_emb = pos_emb
+        self.drop = drop
+        self.blocks = blocks
+        self.ln_1 = ln_1
+        self.head = head
+
+        print('Number of parameters:', sum(p.numel() for p in self.parameters()))
+
+    def forward(self, idx, targets=None):
+        _, t = idx.size()
+
+        # forward the GPT model
+        token_embeddings = self.tok_emb(idx)  # each index maps to a (learnable) vector
+        position_embeddings = self.pos_emb[:, :t, :]  # each position maps to a (learnable) vector
+
+        x = self.drop(token_embeddings + position_embeddings)
+        x = self.blocks(x)
+        x = self.ln_1(x)
+        x = torch.mean(x, 1, False)
+        logits = self.head(x)
+
+        return logits        
