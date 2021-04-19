@@ -26,22 +26,18 @@ print(args)
 set_seed(42)
 
 # TODO: better handling of saved filename
-ckpt_path = os.path.join(args.save_dir, 'ft_model_12l_8h_512e_32b_{}.pt'.format(args.subject))
+ckpt_path = os.path.join(args.save_dir, 'model_12l_8h_512e_32b_rcrop_{}.pt'.format(args.subject))
 
 # TODO: add option to do finetuning on a different dataset
-# if args.data_cache and os.path.exists(args.data_cache):
-#     print("Loading training dataset from {}".format(args.data_cache))
-#     train_dataset = torch.load(args.data_cache)
-# else:
-#     print("Building training dataset from scratch")
-#     train_data = torchvision.datasets.ImageFolder(args.data, torchvision.transforms.RandomResizedCrop(args.d_img, scale=(0.8, 1)))
-#     cluster_centers = make_dictionary(train_data, args.dict_size, args.d_img)
-#     train_dataset = ImageDataset(train_data, args.d_img, cluster_centers)
-#     torch.save(train_dataset, args.data_cache)
-
-cached_train_dataset = torch.load(args.data_cache)
-train_data = torchvision.datasets.ImageFolder(args.data, torchvision.transforms.RandomResizedCrop(args.d_img, scale=(0.8, 1)))
-train_dataset = ImageDataset(train_data, args.d_img, cached_train_dataset.clusters)
+if args.data_cache and os.path.exists(args.data_cache):
+    print("Loading training dataset from {}".format(args.data_cache))
+    train_dataset = torch.load(args.data_cache)
+else:
+    print("Building training dataset from scratch")
+    train_data = torchvision.datasets.ImageFolder(args.data, torchvision.transforms.RandomResizedCrop(args.d_img, scale=(0.7, 1)))
+    cluster_centers = make_dictionary(train_data, args.dict_size, args.d_img)
+    train_dataset = ImageDataset(train_data, args.d_img, cluster_centers)
+    torch.save(train_dataset, args.data_cache)
 
 # some sanity checks
 print('Training data size:', len(train_dataset))
