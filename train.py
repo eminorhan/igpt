@@ -16,7 +16,7 @@ parser.add_argument('--n_head', default=8, type=int, help='number of attention h
 parser.add_argument('--n_embd', default=512, type=int, help='embedding dimensionality')
 parser.add_argument('--epochs', default=1000, type=int, help='number of training epochs')
 parser.add_argument('--batch_size', default=32, type=int, help='batch size')
-parser.add_argument('--subject', default='A', choices=['SAY', 'S', 'A', 'Y'], help='subject')
+parser.add_argument('--subject', default='SAY', choices=['SAY', 'S', 'A', 'Y'], help='subject')
 parser.add_argument('--data_cache', default='', type=str, help='Cache path for the training set for quicker initialization')
 parser.add_argument('--resume', default='', type=str, help='Model path for resuming training')
 
@@ -25,8 +25,9 @@ print(args)
 
 set_seed(42)
 
-# TODO: better handling of saved filename
-ckpt_path = os.path.join(args.save_dir, 'model_12l_8h_512e_32b_rcrop_{}.pt'.format(args.subject))
+model_name = 'model_{}l_{}h_{}e_{}b_{}.pt'.format(args.n_layer, args.n_head, args.n_embd, args.batch_size, args.subject)
+ckpt_path = os.path.join(args.save_dir, model_name)
+print('The model will be saved to', ckpt_path)
 
 # TODO: add option to do finetuning on a different dataset
 if args.data_cache and os.path.exists(args.data_cache):
@@ -34,7 +35,7 @@ if args.data_cache and os.path.exists(args.data_cache):
     train_dataset = torch.load(args.data_cache)
 else:
     print("Building training dataset from scratch")
-    train_data = torchvision.datasets.ImageFolder(args.data, torchvision.transforms.RandomResizedCrop(args.d_img, scale=(0.7, 1)))
+    train_data = torchvision.datasets.ImageFolder(args.data, torchvision.transforms.Resize(args.d_img))
     cluster_centers = make_dictionary(train_data, args.dict_size, args.d_img)
     train_dataset = ImageDataset(train_data, args.d_img, cluster_centers)
     torch.save(train_dataset, args.data_cache)
