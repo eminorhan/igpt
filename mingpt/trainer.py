@@ -38,7 +38,7 @@ class Trainer:
         print('Saving to:', self.config.ckpt_path)
         torch.save({'model_state_dict': raw_model.state_dict(), 'optimizer_state_dict': optimizer.state_dict()}, self.config.ckpt_path)
 
-    def train(self):
+    def train(self, args):
         model, optimizer, config = self.model, self.optimizer, self.config
         raw_model = model.module if hasattr(self.model, "module") else model
 
@@ -46,15 +46,19 @@ class Trainer:
             is_train = split == 'train'
             model.train(is_train)
             data = self.train_dataset if is_train else self.test_dataset
-            loader = DataLoader(data, shuffle=True, pin_memory=True, batch_size=config.batch_size, num_workers=config.num_workers)
+            train_sampler = torch.utils.data.distributed.DistributedSampler(data)            
+            loader = DataLoader(data, shuffle=False, pin_memory=True, sampler=train_sampler, batch_size=config.batch_size, num_workers=config.num_workers)
+
+            if args.distributed: 
+                loader.sampler.set_epoch(epoch)
 
             losses = []
             print_freq = max(1, len(loader) // 100)
 
             for it, (x, y) in enumerate(loader):
                 # place data on the correct device
-                x = x.cuda()
-                y = y.cuda()
+                x = x.cuda(non_blocking=True)
+                y = y.cuda(non_blocking=True)
 
                 # forward the model
                 with torch.set_grad_enabled(is_train):
@@ -87,6 +91,7 @@ class Trainer:
 
             # supports early stopping based on the test loss, or just save always if no test set is provided
             good_model = self.test_dataset is None or test_loss < best_loss
-            if self.config.ckpt_path is not None and good_model:
-                # best_loss = test_loss
-                self.save_checkpoint()
+            if args.rank == 0:
+                if self.config.ckpt_path is not None and good_model:
+                    # best_loss = test_loss
+                    self.save_checkpoint()

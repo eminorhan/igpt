@@ -185,4 +185,4 @@ class LinearProbeGPT(nn.Module):
         x = torch.mean(x, 1, False)
         logits = self.head(x)
 
-        return logits        
+        return logits

@@ -34,7 +34,7 @@ if args.condition == 'uncond':
     generate_samples(model, train_dataset, 32)
 elif args.condition == 'half' or args.condition == 'chimera':
     # generate samples conditioned on upper half
-    img_dir = '/scratch/eo41/minGPT/frames_for_half_4'
+    img_dir = '/scratch/eo41/minGPT/frames_for_half_1'
     print("Generating samples from upper half of images at {}".format(img_dir))
     x_data = torchvision.datasets.ImageFolder(img_dir, torchvision.transforms.Resize((train_dataset.d_img, train_dataset.d_img)))
     x_dataset = ImageDataset(x_data, train_dataset.d_img, train_dataset.clusters)

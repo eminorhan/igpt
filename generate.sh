@@ -12,6 +12,6 @@
 module purge
 module load cuda/11.1.74
 
-python -u /scratch/eo41/minGPT/generate.py --condition 'half' --data_cache '/scratch/eo41/minGPT/data_model_cache/data_A_rcrop.pth' --model_cache '/scratch/eo41/minGPT/data_model_cache/model_12l_8h_512e_32b_rcrop_A.pt'
+python -u /scratch/eo41/minGPT/generate.py --condition 'half' --data_cache '/scratch/eo41/minGPT/data_model_cache/data_SAY_half_fps.pth' --model_cache '/scratch/eo41/minGPT/data_model_cache/model_12l_8h_512e_28b_SAY.pt'
 
 echo "Done"
