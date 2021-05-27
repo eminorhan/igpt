@@ -8,8 +8,8 @@ from mingpt.model import GPT, GPTConfig
 from mingpt.trainer import Trainer, TrainerConfig
 import torch.distributed as dist
 
-parser = argparse.ArgumentParser(description='Train an Image GPT on SAYCam')
-parser.add_argument('data', metavar='DIR', help='path to SAYCam frames')
+parser = argparse.ArgumentParser(description='Train an Image GPT')
+parser.add_argument('data', metavar='DIR', help='path to frames')
 parser.add_argument('--save_dir', default='', type=str, help='model save directory')
 parser.add_argument('--d_img', default=48, type=int, help='image size (pixels)')
 parser.add_argument('--dict_size', default=512, type=int, help='dictionary size')
@@ -62,7 +62,7 @@ if args.data_cache and os.path.exists(args.data_cache):
     train_dataset = torch.load(args.data_cache)
 else:
     print("Building training dataset from scratch")
-    train_data = torchvision.datasets.ImageFolder(args.data, torchvision.transforms.Resize(args.d_img))
+    train_data = torchvision.datasets.ImageFolder(args.data, torchvision.transforms.Resize((args.d_img, args.d_img)))
     if args.finetune:
         pretrain_dataset = torch.load('/scratch/eo41/minGPT/data_model_cache/data_SAY_half_fps.pth')  # TODO: handle this better (with a separate arg)
         cluster_centers = pretrain_dataset.clusters
