@@ -14,8 +14,8 @@ parser.add_argument('--model_cache', default='', type=str, help='Cache path for 
 parser.add_argument('--num_classes', default=26, type=int, help='Number of classes in downstream classification task')
 parser.add_argument('--batch_size', default=128, type=int, help='batch size')
 parser.add_argument('--epochs', default=100, type=int, help='epochs')
-parser.add_argument('--probe_layer', default=5, type=int, help='probe layer', choices=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
-
+parser.add_argument('--probe_layer', default=16, type=int, help='probe layer', choices=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23])
+parser.add_argument('--print_freq', default=10000, type=int, help='print results after this many iterations')
 
 def freeze_trunk(model):
     '''Helper function for setting body to non-trainable'''
@@ -23,7 +23,7 @@ def freeze_trunk(model):
         param.requires_grad = False
 
 
-def load_split_train_test(labeled_s_dataset, batch_size, subsample=False, workers=8, train_frac=0.5):
+def load_split_train_test(labeled_s_dataset, batch_size, subsample=False, workers=4, train_frac=0.5):
 
     num_train = len(labeled_s_dataset)
 
@@ -200,7 +200,7 @@ if __name__ == '__main__':
     labeled_s_dataset = ImageDatasetWithLabels(labeled_s_data, train_dataset.d_img, train_dataset.clusters)
 
     ## set up model (TODO: better way to handle the model config)
-    mconf = GPTConfig(train_dataset.vocab_size, train_dataset.block_size, embd_pdrop=0.0, resid_pdrop=0.0, attn_pdrop=0.0, n_layer=12, n_head=8, n_embd=512)
+    mconf = GPTConfig(train_dataset.vocab_size, train_dataset.block_size, embd_pdrop=0.0, resid_pdrop=0.0, attn_pdrop=0.0, n_layer=24, n_head=8, n_embd=512)
     model = GPT(mconf)
 
     # load the model

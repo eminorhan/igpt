@@ -53,7 +53,7 @@ class Trainer:
                 loader.sampler.set_epoch(epoch)
 
             losses = []
-            print_freq = max(1, len(loader) // 100)
+            print_freq = max(1, len(loader) // 10)  # print results 10 times every epoch
 
             for it, (x, y) in enumerate(loader):
                 # place data on the correct device
@@ -66,11 +66,13 @@ class Trainer:
                     loss = loss.mean() # collapse all losses if they are scattered on multiple gpus
                     losses.append(loss.item())
 
-                if is_train:
-                    # backprop and update the parameters
-                    model.zero_grad()
-                    loss.backward()
-                    optimizer.step()
+                print(losses)
+
+                # if is_train:
+                #     # backprop and update the parameters
+                #     model.zero_grad()
+                #     loss.backward()
+                #     optimizer.step()
 
                 # report progress
                 if it % print_freq == 0:

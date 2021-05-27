@@ -92,7 +92,6 @@ def sample(model, x, steps, temperature=1.0, sample=False, top_k=None):
             _, ix = torch.topk(probs, k=1, dim=-1)
         # append to the sequence and continue
         x = torch.cat((x, ix), dim=1)
-
     return x
 
 def make_dictionary(train_data, dict_size, d_img):

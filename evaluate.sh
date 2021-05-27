@@ -12,6 +12,6 @@
 module purge
 module load cuda/11.1.74
 
-python -u /scratch/eo41/minGPT/evaluate.py '/scratch/eo41/minGPT/saycam_labeled' --traindata_cache '/scratch/eo41/minGPT/data_model_cache/data_A.pth' --model_cache '/scratch/eo41/minGPT/data_model_cache/model_12l_8h_512e_32b_A.pt'
+python -u /scratch/eo41/minGPT/evaluate.py '/scratch/eo41/minGPT/saycam_labeled' --traindata_cache '/scratch/eo41/minGPT/data_model_cache/data_SAY_half_fps.pth' --model_cache '/scratch/eo41/minGPT/data_model_cache/model_24l_8h_512e_3b_SAY.pt' --probe_layer 18
 
 echo "Done"
