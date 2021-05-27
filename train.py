@@ -62,7 +62,8 @@ if args.data_cache and os.path.exists(args.data_cache):
     train_dataset = torch.load(args.data_cache)
 else:
     print("Building training dataset from scratch")
-    train_data = torchvision.datasets.ImageFolder(args.data, torchvision.transforms.Resize((args.d_img, args.d_img)))
+    train_transforms = torchvision.transforms.Compose([torchvision.transforms.Resize(256), torchvision.transforms.RandomCrop(224), torchvision.transforms.Resize(args.d_img)])
+    train_data = torchvision.datasets.ImageFolder(args.data, train_transforms)
     if args.finetune:
         pretrain_dataset = torch.load('/scratch/eo41/minGPT/data_model_cache/data_SAY_half_fps.pth')  # TODO: handle this better (with a separate arg)
         cluster_centers = pretrain_dataset.clusters
