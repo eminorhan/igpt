@@ -6,7 +6,7 @@
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=2
 #SBATCH --mem=200GB
-#SBATCH --time=4:00:00
+#SBATCH --time=12:00:00
 #SBATCH --array=0
 #SBATCH --job-name=train_igpt
 #SBATCH --output=train_igpt_%A_%a.out

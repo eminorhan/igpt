@@ -48,11 +48,11 @@ if args.distributed:
         args.gpu = args.rank % torch.cuda.device_count()
     dist.init_process_group(backend=args.dist_backend, init_method=args.dist_url, world_size=args.world_size, rank=args.rank)
 
-# suppress printing if not on master gpu
-if args.rank!=0:
-    def print_pass(*args):
-        pass
-    builtins.print = print_pass
+    # suppress printing if not on master gpu
+    if args.rank!=0:
+        def print_pass(*args):
+            pass
+        builtins.print = print_pass
 
 print('Running on {} GPUs total'.format(args.world_size))
 model_name = 'model_{}l_{}h_{}e_{}b_{}d_{}lr_{}.pt'.format(args.n_layer, args.n_head, args.n_embd, args.world_size * args.batch_size, args.d_img, args.lr, args.subject)
