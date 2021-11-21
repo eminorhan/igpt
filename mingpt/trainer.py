@@ -16,7 +16,7 @@ class TrainerConfig:
 
     # checkpoint settings
     ckpt_path = None
-    num_workers = 0 # for DataLoader
+    num_workers = 0  # for DataLoader
 
     def __init__(self, **kwargs):
         for k,v in kwargs.items():
@@ -40,20 +40,22 @@ class Trainer:
 
     def train(self, args):
         model, optimizer, config = self.model, self.optimizer, self.config
-        raw_model = model.module if hasattr(self.model, "module") else model
 
         def run_epoch(split, epoch):
             is_train = split == 'train'
             model.train(is_train)
             data = self.train_dataset if is_train else self.test_dataset
-            train_sampler = torch.utils.data.distributed.DistributedSampler(data)            
-            loader = DataLoader(data, shuffle=False, pin_memory=True, sampler=train_sampler, batch_size=config.batch_size, num_workers=config.num_workers)
+            if args.distributed:
+                train_sampler = torch.utils.data.distributed.DistributedSampler(data)
+                loader = DataLoader(data, shuffle=False, pin_memory=True, sampler=train_sampler, batch_size=config.batch_size, num_workers=config.num_workers)
+            else:
+                loader = DataLoader(data, shuffle=True, pin_memory=True, batch_size=config.batch_size, num_workers=config.num_workers)
 
             if args.distributed: 
                 loader.sampler.set_epoch(epoch)
 
             losses = []
-            print_freq = max(1, len(loader) // 10)  # print results 10 times every epoch
+            print_freq = max(1, len(loader) // 5)  # print results 5 times every epoch
 
             for it, (x, y) in enumerate(loader):
                 # place data on the correct device
@@ -62,17 +64,15 @@ class Trainer:
 
                 # forward the model
                 with torch.set_grad_enabled(is_train):
-                    logits, loss = model(x, y)
-                    loss = loss.mean() # collapse all losses if they are scattered on multiple gpus
+                    _, loss = model(x, y)  # the first output returns the logits, which we don't need for now
+                    loss = loss.mean()  # collapse all losses if they are scattered on multiple gpus
                     losses.append(loss.item())
 
-                print(losses)
-
-                # if is_train:
-                #     # backprop and update the parameters
-                #     model.zero_grad()
-                #     loss.backward()
-                #     optimizer.step()
+                if is_train:
+                    # backprop and update the parameters
+                    model.zero_grad()
+                    loss.backward()
+                    optimizer.step()
 
                 # report progress
                 if it % print_freq == 0:

@@ -3,25 +3,27 @@ import builtins
 import argparse
 import torch
 import torchvision
+import torch.distributed as dist
 from mingpt.utils import ImageDataset, make_dictionary, generate_samples
 from mingpt.model import GPT, GPTConfig 
 from mingpt.trainer import Trainer, TrainerConfig
-import torch.distributed as dist
 
 parser = argparse.ArgumentParser(description='Train an Image GPT')
 parser.add_argument('data', metavar='DIR', help='path to frames')
 parser.add_argument('--save_dir', default='', type=str, help='model save directory')
-parser.add_argument('--d_img', default=48, type=int, help='image size (pixels)')
+parser.add_argument('--d_img', default=64, type=int, help='image size (pixels)')
 parser.add_argument('--dict_size', default=512, type=int, help='dictionary size')
 parser.add_argument('--n_layer', default=24, type=int, help='number of layers')
 parser.add_argument('--n_head', default=8, type=int, help='number of attention heads')
 parser.add_argument('--n_embd', default=512, type=int, help='embedding dimensionality')
-parser.add_argument('--epochs', default=100, type=int, help='number of training epochs')
-parser.add_argument('--batch_size', default=32, type=int, help='batch size')
-parser.add_argument('--subject', default='SAY', choices=['ImageNet', 'SAY', 'S', 'A', 'Y'], help='subject')
+parser.add_argument('--epochs', default=200, type=int, help='number of training epochs')
+parser.add_argument('--batch_size', default=32, type=int, help='batch size per gpu')
+parser.add_argument('--lr', default=0.0005, type=float, help='learning rate')
+parser.add_argument('--subject', default='SAY', choices=['ImageNet', 'SAY', 'S', 'A', 'Y', 'labeled_S', 'brady'], help='subject')
 parser.add_argument('--data_cache', default='', type=str, help='Cache path for the training set for quicker initialization')
 parser.add_argument('--resume', default='', type=str, help='Model path for resuming training')
-parser.add_argument('--finetune', default=False, action='store_true', help='freeze trunk?')
+parser.add_argument('--finetune', default=False, action='store_true', help='finetuning on another dataset?')
+parser.add_argument('--pretrain-dataset', default='', type=str, help='Path to saved pretrain data file (only necessary if finetune is True)')
 parser.add_argument('--gpu', default=None, type=int)
 parser.add_argument('--world-size', default=-1, type=int, help='number of nodes for distributed training')
 parser.add_argument('--rank', default=-1, type=int, help='node rank for distributed training')
@@ -36,7 +38,6 @@ print(args)
 if "WORLD_SIZE" in os.environ:
     args.world_size = int(os.environ["WORLD_SIZE"])
 args.distributed = args.world_size > 1
-ngpus_per_node = torch.cuda.device_count()
 
 if args.distributed:
     if args.local_rank != -1: # for torch.distributed.launch
@@ -53,7 +54,8 @@ if args.rank!=0:
         pass
     builtins.print = print_pass
 
-model_name = 'model_{}l_{}h_{}e_{}b_{}.pt'.format(args.n_layer, args.n_head, args.n_embd, args.batch_size, args.subject)
+print('Running on {} GPUs total'.format(args.world_size))
+model_name = 'model_{}l_{}h_{}e_{}b_{}d_{}lr_{}.pt'.format(args.n_layer, args.n_head, args.n_embd, args.world_size * args.batch_size, args.d_img, args.lr, args.subject)
 ckpt_path = os.path.join(args.save_dir, model_name)
 print('The model will be saved to', ckpt_path)
 
@@ -62,11 +64,19 @@ if args.data_cache and os.path.exists(args.data_cache):
     train_dataset = torch.load(args.data_cache)
 else:
     print("Building training dataset from scratch")
-    train_transforms = torchvision.transforms.Compose([torchvision.transforms.Resize(256), torchvision.transforms.RandomCrop(224), torchvision.transforms.Resize(args.d_img)])
+    train_transforms = torchvision.transforms.Compose([
+        # torchvision.transforms.Resize(256), 
+        # torchvision.transforms.RandomCrop(224), 
+        torchvision.transforms.Resize(args.d_img)
+        ])
     train_data = torchvision.datasets.ImageFolder(args.data, train_transforms)
     if args.finetune:
-        pretrain_dataset = torch.load('/scratch/eo41/minGPT/data_model_cache/data_SAY_half_fps.pth')  # TODO: handle this better (with a separate arg)
-        cluster_centers = pretrain_dataset.clusters
+        if os.path.isfile(args.pretrain_dataset):
+            pretrain_dataset = torch.load(args.pretrain_dataset)
+            cluster_centers = pretrain_dataset.clusters
+        else:
+            # raise error if file doesn't exist
+            raise FileNotFoundError("The pretrain dataset file doesn't exist")
     else:
         cluster_centers = make_dictionary(train_data, args.dict_size, args.d_img)
     train_dataset = ImageDataset(train_data, args.d_img, cluster_centers)
@@ -83,8 +93,8 @@ mconf = GPTConfig(train_dataset.vocab_size, train_dataset.block_size, embd_pdrop
 model = GPT(mconf)
 
 if args.distributed:
-    # For multiprocessing distributed, DistributedDataParallel constructor should always set the single device scope, otherwise,
-    # DistributedDataParallel will use all available devices.
+    # For multiprocessing distributed, DistributedDataParallel constructor should always set the single device scope,
+    # otherwise, DistributedDataParallel will use all available devices.
     if args.gpu is not None:
         torch.cuda.set_device(args.gpu)
         model.cuda(args.gpu)
@@ -93,9 +103,9 @@ if args.distributed:
         model.cuda()
         model = torch.nn.parallel.DistributedDataParallel(model)
 else:
-    raise NotImplementedError("Only DistributedDataParallel is supported.")
+    model = torch.nn.DataParallel(model.cuda())
 
-optimizer = torch.optim.Adam(model.parameters(), 0.0005, weight_decay=0.0)
+optimizer = torch.optim.Adam(model.parameters(), args.lr, weight_decay=0.0)
 
 if args.resume:
     if os.path.isfile(args.resume):

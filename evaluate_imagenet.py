@@ -7,11 +7,13 @@ from mingpt.utils import ImageDataset, ImageDatasetWithLabels, generate_samples
 from mingpt.model import GPT, GPTConfig, LinearProbeGPT 
 from torch.utils.data.dataloader import DataLoader
 
-parser = argparse.ArgumentParser(description='Evaluate model on eval data')
-parser.add_argument('data', metavar='DIR', help='path to labeled S frames')
+parser = argparse.ArgumentParser(description='Linear probe on ImageNet')
+parser.add_argument('--train_data_path', type=str, help='path to train set')
+parser.add_argument('--val_data_path', type=str, help='path to val set')
+parser.add_argument('--workers', default=8, type=int, help='number of data loading workers (default: 8)')
 parser.add_argument('--traindata_cache', default='', type=str, help='Cache path for the stored training set')
 parser.add_argument('--model_cache', default='', type=str, help='Cache path for the stored model')
-parser.add_argument('--num_classes', default=26, type=int, help='Number of classes in downstream classification task')
+parser.add_argument('--num_classes', default=1000, type=int, help='Number of classes in downstream classification task')
 parser.add_argument('--batch_size', default=128, type=int, help='batch size')
 parser.add_argument('--epochs', default=100, type=int, help='epochs')
 parser.add_argument('--probe_layer', default=16, type=int, help='probe layer', choices=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23])
@@ -21,33 +23,6 @@ def freeze_trunk(model):
     '''Helper function for setting body to non-trainable'''
     for param in list(model.parameters())[:-2]:
         param.requires_grad = False
-
-def load_split_train_test(labeled_s_dataset, batch_size, subsample=False, workers=4, train_frac=0.5):
-
-    num_train = len(labeled_s_dataset)
-
-    print('Total data size is', num_train)
-
-    indices = list(range(num_train))
-    split = int(np.floor(train_frac * num_train))
-    np.random.shuffle(indices)
-
-    if subsample:
-        num_data = int(0.1 * num_train)
-        train_idx, test_idx = indices[:(num_data // 2)], indices[(num_data // 2):num_data]
-    else:
-        train_idx, test_idx = indices[:split], indices[split:]
-
-    print('Training data size is', len(train_idx))
-    print('Test data size is', len(test_idx))
-
-    train_sampler = torch.utils.data.sampler.SubsetRandomSampler(train_idx)
-    test_sampler = torch.utils.data.sampler.SubsetRandomSampler(test_idx)
-
-    trainloader = torch.utils.data.DataLoader(labeled_s_dataset, batch_size=batch_size, shuffle=False, num_workers=workers, pin_memory=True, sampler=train_sampler)
-    testloader = torch.utils.data.DataLoader(labeled_s_dataset, batch_size=batch_size, shuffle=False, num_workers=workers, pin_memory=True, sampler=test_sampler)
-
-    return trainloader, testloader
 
 def train(train_loader, model, criterion, optimizer, epoch, print_freq=100):
     batch_time = AverageMeter('Time', ':6.3f')
@@ -194,9 +169,15 @@ if __name__ == '__main__':
     print("Loading data")
     train_dataset = torch.load(args.traindata_cache)
 
-    # build the labeled S dataset using the dictionary learned over training data
-    labeled_s_data = torchvision.datasets.ImageFolder(args.data, torchvision.transforms.Resize(train_dataset.d_img))
-    labeled_s_dataset = ImageDatasetWithLabels(labeled_s_data, train_dataset.d_img, train_dataset.clusters)
+    # build the labeled train set using the dictionary learned over training data
+    train_data = torchvision.datasets.ImageFolder(args.train_data_path, torchvision.transforms.Resize(train_dataset.d_img))
+    train_dataset_with_labels = ImageDatasetWithLabels(train_data, train_dataset.d_img, train_dataset.clusters)
+    train_loader = torch.utils.data.DataLoader(train_dataset_with_labels, batch_size=args.batch_size, shuffle=True, num_workers=args.workers, pin_memory=True, sampler=None)
+
+    # build the labeled val set using the dictionary learned over training data
+    val_data = torchvision.datasets.ImageFolder(args.val_data_path, torchvision.transforms.Resize(train_dataset.d_img))
+    val_dataset_with_labels = ImageDatasetWithLabels(val_data, train_dataset.d_img, train_dataset.clusters)
+    val_loader = torch.utils.data.DataLoader(val_dataset_with_labels, batch_size=args.batch_size, shuffle=False, num_workers=args.workers, pin_memory=True, sampler=None)
 
     ## set up model (TODO: better way to handle the model config)
     mconf = GPTConfig(train_dataset.vocab_size, train_dataset.block_size, embd_pdrop=0.0, resid_pdrop=0.0, attn_pdrop=0.0, n_layer=24, n_head=8, n_embd=512)
@@ -218,7 +199,6 @@ if __name__ == '__main__':
     if torch.cuda.is_available():
         model = torch.nn.DataParallel(model).cuda()
 
-    train_loader, test_loader = load_split_train_test(labeled_s_dataset, args.batch_size)
     acc1_list = []
     val_acc1_list = []
 
@@ -230,11 +210,15 @@ if __name__ == '__main__':
 
     for epoch in range(1, args.epochs+1):
         # train for one epoch
-        acc1 = train(train_loader, model, criterion, optimizer, epoch)
+        acc1 = train(train_loader, model, criterion, optimizer, epoch, print_freq=1000)
         acc1_list.append(acc1)
 
-    # validate at end of epoch
-    val_acc1, preds, target, images = validate(test_loader, model)
-    val_acc1_list.append(val_acc1)
+        # validate at end of epoch
+        val_acc1, preds, target, images = validate(val_loader, model)
+        val_acc1_list.append(val_acc1)
 
-    torch.save({'acc1_list': acc1_list, 'val_acc1_list': val_acc1_list}, 'testrun2.tar')
+        ckpt_path = 'LinearProbe_24l_8h_512e_128b_64d_ImageNet_{}.pt'.format(epoch)  # TODO: better naming
+        raw_model = model.module if hasattr(model, "module") else model
+        print('Saving to:', ckpt_path)
+        torch.save({'model_state_dict': raw_model.state_dict(), 'optimizer_state_dict': optimizer.state_dict()}, ckpt_path)
+
