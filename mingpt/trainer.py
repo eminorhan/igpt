@@ -30,13 +30,19 @@ class Trainer:
         self.train_dataset = train_dataset
         self.test_dataset = test_dataset
         self.config = config
+        self.train_loss = None
+        self.test_loss = None
 
     def save_checkpoint(self):
         # DataParallel wrappers keep raw model object in .module attribute
         raw_model = self.model.module if hasattr(self.model, "module") else self.model
         optimizer = self.optimizer
         print('Saving to:', self.config.ckpt_path)
-        torch.save({'model_state_dict': raw_model.state_dict(), 'optimizer_state_dict': optimizer.state_dict()}, self.config.ckpt_path)
+        torch.save({'model_state_dict': raw_model.state_dict(), 
+                    'optimizer_state_dict': optimizer.state_dict(),
+                    'train_loss': self.train_loss,
+                    'test_loss': self.test_loss
+                    }, self.config.ckpt_path)
 
     def train(self, args):
         model, optimizer, config = self.model, self.optimizer, self.config
@@ -45,6 +51,7 @@ class Trainer:
             is_train = split == 'train'
             model.train(is_train)
             data = self.train_dataset if is_train else self.test_dataset
+
             if args.distributed:
                 train_sampler = torch.utils.data.distributed.DistributedSampler(data)
                 loader = DataLoader(data, shuffle=False, pin_memory=True, sampler=train_sampler, batch_size=config.batch_size, num_workers=config.num_workers)
@@ -76,24 +83,18 @@ class Trainer:
 
                 # report progress
                 if it % print_freq == 0:
-                    print('Epoch:', epoch, '|', 'Iteration:', it, 'of', len(loader), '|', 'Training loss:', float(np.mean(losses)))
-                    losses = []
+                    print('Epoch:', epoch, '|', 'Iteration:', it, 'of', len(loader), '|', 'Loss (up to this point in this epoch):', float(np.mean(losses)))
 
-            if not is_train:
-                test_loss = float(np.mean(losses))
-                print('Test loss:', test_loss)
-                return test_loss
+            epoch_loss = float(np.mean(losses))
+            return epoch_loss
 
-        best_loss = float('inf')
         for epoch in range(config.max_epochs):
+            self.train_loss = run_epoch('train', epoch)
 
-            run_epoch('train', epoch)
-            if self.test_dataset is not None:
-                test_loss = run_epoch('test')
+        # test once at the end of training
+        if self.test_dataset is not None:
+            self.test_loss = run_epoch('test')
 
-            # supports early stopping based on the test loss, or just save always if no test set is provided
-            good_model = self.test_dataset is None or test_loss < best_loss
-            if args.rank == 0:
-                if self.config.ckpt_path is not None and good_model:
-                    # best_loss = test_loss
-                    self.save_checkpoint()
+        # save model
+        if args.rank == 0:
+            self.save_checkpoint()
