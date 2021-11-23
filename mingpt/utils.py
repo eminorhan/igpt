@@ -48,10 +48,10 @@ class ImageDatasetWithLabels(Dataset):
 
     def __getitem__(self, idx):
         x, y = self.pt_dataset[idx]
-        x = torch.from_numpy(np.array(x)).view(-1, 3) # flatten out all pixels
-        x = x[self.perm].float() # reshuffle pixels with any fixed permutation and -> float
+        x = torch.from_numpy(np.array(x)).view(-1, 3)  # flatten out all pixels
+        x = x[self.perm].float()  # reshuffle pixels with any fixed permutation and -> float
         a = ((x[:, None, :] - self.clusters[None, :, :])**2).sum(-1).argmin(1) # cluster assignments
-        return a[:-1], y # always just predict the next one in the sequence
+        return a[:-1], y  # always just predict the next one in the sequence
 
 def set_seed(seed):
     random.seed(seed)
@@ -113,35 +113,6 @@ def make_dictionary(train_data, dict_size, d_img):
 
     return cluster_centers
     
-# def make_dictionary(train_data, dict_size, d_img):
-#     # get random 2 pixels per image and stack them all up as rgb values to get half a million random pixels
-#     pluck_rgb = lambda x: np.array(x).reshape(d_img**2, 3)[np.random.permutation(d_img**2)[:2], :]
-#     px = []
-#     i = 0
-#     print(len(train_data))
-#     idx = np.arange(0, 1281167, 4)
-#     for i in idx:
-#         x, _ = train_data[i]
-#         px.append(pluck_rgb(x))
-#         if i % 10000 == 0:
-#             print('pluck iteration', i)
-
-#     px = np.concatenate(px, axis=0)
-#     px = np.float32(px)
-#     print('Building the dictionary')
-#     print('Pixel stack shape:', px.shape)
-
-#     ## compute dictionary
-#     kmeans = MiniBatchKMeans(n_clusters=dict_size, random_state=0, batch_size=128) 
-#     kmeans.fit(px)
-
-#     cluster_centers = kmeans.cluster_centers_
-#     print('Cluster centers shape:', cluster_centers.shape)
-
-#     cluster_centers = torch.from_numpy(cluster_centers)
-
-#     return cluster_centers
-
 def generate_samples(model, train_dataset, n_samples):
     # to sample we also have to technically "train" a separate model for the first token in the sequence
     # we are going to do so below simply by calculating and normalizing the histogram of the first token
@@ -150,7 +121,7 @@ def generate_samples(model, train_dataset, n_samples):
 
     counts = torch.ones(dict_size)  # start counts as 1 not zero, this is called "smoothing"
     rp = torch.randperm(len(train_dataset))
-    nest = 5000  # how many images to use for the estimation
+    nest = min(1000, len(train_dataset))  # how many images to use for the estimation
     for i in range(nest):
         a, _ = train_dataset[int(rp[i])]
         t = a[0].item()  # index of first token in the sequence
@@ -162,6 +133,8 @@ def generate_samples(model, train_dataset, n_samples):
     start_pixel = torch.from_numpy(start_pixel)
     if torch.cuda.is_available():
         start_pixel = start_pixel.cuda()
+
+    print('Starting sampling.')    
     pixels = sample(model, start_pixel, train_dataset.d_img * train_dataset.d_img - 1, temperature=1.0, sample=True, top_k=100)
 
     # for visualization we have to invert the permutation used to produce the pixels

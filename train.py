@@ -4,7 +4,7 @@ import argparse
 import torch
 import torchvision
 import torch.distributed as dist
-from mingpt.utils import ImageDataset, make_dictionary, generate_samples
+from mingpt.utils import ImageDataset, make_dictionary
 from mingpt.model import GPT, GPTConfig 
 from mingpt.trainer import Trainer, TrainerConfig
 
@@ -64,9 +64,8 @@ if args.data_cache and os.path.exists(args.data_cache):
     train_dataset = torch.load(args.data_cache)
 else:
     print("Building training dataset from scratch")
+    # adjust transforms as needed
     train_transforms = torchvision.transforms.Compose([
-        # torchvision.transforms.Resize(256), 
-        # torchvision.transforms.RandomCrop(224), 
         torchvision.transforms.Resize(args.d_img)
         ])
     train_data = torchvision.datasets.ImageFolder(args.data, train_transforms)
@@ -93,8 +92,8 @@ mconf = GPTConfig(train_dataset.vocab_size, train_dataset.block_size, embd_pdrop
 model = GPT(mconf)
 
 if args.distributed:
-    # For multiprocessing distributed, DistributedDataParallel constructor should always set the single device scope,
-    # otherwise, DistributedDataParallel will use all available devices.
+    # For multiprocessing distributed, DistributedDataParallel constructor should always set   
+    # the single device scope, otherwise DistributedDataParallel will use all available devices
     if args.gpu is not None:
         torch.cuda.set_device(args.gpu)
         model.cuda(args.gpu)
@@ -122,11 +121,3 @@ tokens_per_epoch = len(train_dataset) * train_dataset.block_size
 tconf = TrainerConfig(max_epochs=args.epochs, batch_size=args.batch_size, ckpt_path=ckpt_path, num_workers=4)
 trainer = Trainer(model, optimizer, train_dataset, None, tconf)
 trainer.train(args)
-
-# # TODO: we get a load error here.
-# # load the state of the best model we've seen based on early stopping
-# checkpoint = torch.load(ckpt_path)
-# model.load_state_dict(checkpoint)
-
-# # generate some samples
-# generate_samples(model, train_dataset, 32)

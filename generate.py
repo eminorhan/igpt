@@ -8,7 +8,7 @@ from torch.utils.data.dataloader import DataLoader
 parser = argparse.ArgumentParser(description='Generate samples from an Image GPT')
 parser.add_argument('--data_cache', default='', type=str, help='Cache path for the stored training set')
 parser.add_argument('--model_cache', default='', type=str, help='Cache path for the stored model')
-parser.add_argument('--condition', default='chimera', type=str, help='Generation condition', choices=['uncond', 'half', 'chimera'])
+parser.add_argument('--condition', default='uncond', type=str, help='Generation condition', choices=['uncond', 'half', 'chimera'])
 
 args = parser.parse_args()
 print(args)

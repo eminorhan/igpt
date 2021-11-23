@@ -7,7 +7,7 @@ import math
 import numpy as np
 import torch
 from torch.utils.data.dataloader import DataLoader
-
+from torch.utils.data.distributed import DistributedSampler
 
 class TrainerConfig:
     # optimization parameters
@@ -44,57 +44,68 @@ class Trainer:
                     'test_loss': self.test_loss
                     }, self.config.ckpt_path)
 
-    def train(self, args):
-        model, optimizer, config = self.model, self.optimizer, self.config
+    def test(self, args):
+        model, config = self.model, self.config
+        model.eval()
 
-        def run_epoch(split, epoch):
-            is_train = split == 'train'
-            model.train(is_train)
-            data = self.train_dataset if is_train else self.test_dataset
+        sampler = DistributedSampler(self.test_dataset) if args.distributed else None
+        loader = DataLoader(self.test_dataset, shuffle=False, pin_memory=True, sampler=sampler, 
+                            batch_size=config.batch_size, num_workers=config.num_workers
+                            )
 
-            if args.distributed:
-                train_sampler = torch.utils.data.distributed.DistributedSampler(data)
-                loader = DataLoader(data, shuffle=False, pin_memory=True, sampler=train_sampler, batch_size=config.batch_size, num_workers=config.num_workers)
-            else:
-                loader = DataLoader(data, shuffle=True, pin_memory=True, batch_size=config.batch_size, num_workers=config.num_workers)
+        losses = []
 
-            if args.distributed: 
-                loader.sampler.set_epoch(epoch)
-
-            losses = []
-            print_freq = max(1, len(loader) // 5)  # print results 5 times every epoch
-
-            for it, (x, y) in enumerate(loader):
+        with torch.no_grad():
+            for _, (x, y) in enumerate(loader):
                 # place data on the correct device
                 x = x.cuda(non_blocking=True)
                 y = y.cuda(non_blocking=True)
 
                 # forward the model
-                with torch.set_grad_enabled(is_train):
-                    _, loss = model(x, y)  # the first output returns the logits, which we don't need for now
-                    loss = loss.mean()  # collapse all losses if they are scattered on multiple gpus
-                    losses.append(loss.item())
+                _, loss = model(x, y)  # the first output returns the logits, which we don't need for now
+                loss = loss.mean()  # collapse all losses if they are scattered on multiple gpus
+                losses.append(loss.item())
+            
+            self.test_loss = float(np.mean(losses))
+            print('Test loss:', self.test_loss)
 
-                if is_train:
-                    # backprop and update the parameters
-                    model.zero_grad()
-                    loss.backward()
-                    optimizer.step()
+    def train(self, args):
+        model, optimizer, config = self.model, self.optimizer, self.config
+        model.train()
 
-                # report progress
-                if it % print_freq == 0:
-                    print('Epoch:', epoch, '|', 'Iteration:', it, 'of', len(loader), '|', 'Loss (up to this point in this epoch):', float(np.mean(losses)))
-
-            epoch_loss = float(np.mean(losses))
-            return epoch_loss
+        sampler = DistributedSampler(self.train_dataset) if args.distributed else None
+        loader = DataLoader(self.train_dataset, shuffle=(not args.distributed), pin_memory=True, 
+                            sampler=sampler, batch_size=config.batch_size, num_workers=config.num_workers
+                            )
 
         for epoch in range(config.max_epochs):
-            self.train_loss = run_epoch('train', epoch)
+            if args.distributed: 
+                loader.sampler.set_epoch(epoch)
 
-        # test once at the end of training
+            losses = []
+
+            for _, (x, y) in enumerate(loader):
+                # place data on the correct device
+                x = x.cuda(non_blocking=True)
+                y = y.cuda(non_blocking=True)
+
+                # forward the model
+                _, loss = model(x, y)  # the first output returns the logits, which we don't need for now
+                loss = loss.mean()  # collapse all losses if they are scattered on multiple gpus
+                losses.append(loss.item())
+
+                # backprop and update the parameters
+                model.zero_grad()
+                loss.backward()
+                optimizer.step()
+
+            self.train_loss = float(np.mean(losses))
+            print('Epoch:', epoch, '|', 'Training loss:', self.train_loss)
+
+        # possibly test once at the end of training
         if self.test_dataset is not None:
-            self.test_loss = run_epoch('test')
+            self.test(args)
 
-        # save model
+        # save model and final train and test losses
         if args.rank == 0:
             self.save_checkpoint()
