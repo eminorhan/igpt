@@ -41,7 +41,8 @@ class Trainer:
         torch.save({'model_state_dict': raw_model.state_dict(), 
                     'optimizer_state_dict': optimizer.state_dict(),
                     'train_loss': self.train_loss,
-                    'test_loss': self.test_loss
+                    'test_loss': self.test_loss,
+                    'clusters': self.train_dataset.clusters,
                     }, self.config.ckpt_path)
 
     def test(self, args):
@@ -106,6 +107,6 @@ class Trainer:
         if self.test_dataset is not None:
             self.test(args)
 
-        # save model and final train and test losses
+        # save trained model, clusters, and final train and test losses
         if args.rank == 0:
             self.save_checkpoint()

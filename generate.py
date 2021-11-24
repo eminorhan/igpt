@@ -9,6 +9,7 @@ parser = argparse.ArgumentParser(description='Generate samples from an Image GPT
 parser.add_argument('--data_cache', default='', type=str, help='Cache path for the stored training set')
 parser.add_argument('--model_cache', default='', type=str, help='Cache path for the stored model')
 parser.add_argument('--condition', default='uncond', type=str, help='Generation condition', choices=['uncond', 'half', 'chimera'])
+parser.add_argument('--n_samples', default=16, type=int, help='number of samples to generate')
 
 args = parser.parse_args()
 print(args)
@@ -31,7 +32,8 @@ if torch.cuda.is_available():
 if args.condition == 'uncond':
     # generate some samples unconditionally
     print("Generating unconditional samples")
-    generate_samples(model, train_dataset, 32)
+    generate_samples(model, train_dataset, args.n_samples)
+    
 elif args.condition == 'half' or args.condition == 'chimera':
     # generate samples conditioned on upper half
     img_dir = '/scratch/eo41/minGPT/frames_for_half_3'

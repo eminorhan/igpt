@@ -12,6 +12,6 @@
 module purge
 module load cuda/11.1.74
 
-python -u /scratch/eo41/minGPT/generate.py --condition 'uncond' --data_cache '/scratch/eo41/minGPT/data_model_cache/brady_all.pth' --model_cache '/scratch/eo41/minGPT/data_model_cache/model_24l_8h_512e_4b_64d_0.0005lr_brady.pt'
+python -u /scratch/eo41/minGPT/generate.py --condition 'uncond' --n_samples 4 --data_cache '/scratch/eo41/minGPT/data_model_cache/brady_all.pth' --model_cache '/scratch/eo41/minGPT/data_model_cache/model_24l_8h_512e_32b_64d_0.0005lr_brady.pt'
 
 echo "Done"

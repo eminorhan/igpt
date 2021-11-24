@@ -19,11 +19,9 @@ parser.add_argument('--n_embd', default=512, type=int, help='embedding dimension
 parser.add_argument('--epochs', default=200, type=int, help='number of training epochs')
 parser.add_argument('--batch_size', default=32, type=int, help='batch size per gpu')
 parser.add_argument('--lr', default=0.0005, type=float, help='learning rate')
-parser.add_argument('--subject', default='SAY', choices=['ImageNet', 'SAY', 'S', 'A', 'Y', 'labeled_S', 'brady'], help='subject')
+parser.add_argument('--subject', default='SAY', choices=['ImageNet', 'SAY', 'S', 'A', 'Y', 'brady'], help='subject')
 parser.add_argument('--data_cache', default='', type=str, help='Cache path for the training set for quicker initialization')
 parser.add_argument('--resume', default='', type=str, help='Model path for resuming training')
-parser.add_argument('--finetune', default=False, action='store_true', help='finetuning on another dataset?')
-parser.add_argument('--pretrain-dataset', default='', type=str, help='Path to saved pretrain data file (only necessary if finetune is True)')
 parser.add_argument('--gpu', default=None, type=int)
 parser.add_argument('--world-size', default=-1, type=int, help='number of nodes for distributed training')
 parser.add_argument('--rank', default=-1, type=int, help='node rank for distributed training')
@@ -69,15 +67,7 @@ else:
         torchvision.transforms.Resize(args.d_img)
         ])
     train_data = torchvision.datasets.ImageFolder(args.data, train_transforms)
-    if args.finetune:
-        if os.path.isfile(args.pretrain_dataset):
-            pretrain_dataset = torch.load(args.pretrain_dataset)
-            cluster_centers = pretrain_dataset.clusters
-        else:
-            # raise error if file doesn't exist
-            raise FileNotFoundError("The pretrain dataset file doesn't exist")
-    else:
-        cluster_centers = make_dictionary(train_data, args.dict_size, args.d_img)
+    cluster_centers = make_dictionary(train_data, args.dict_size, args.d_img)
     train_dataset = ImageDataset(train_data, args.d_img, cluster_centers)
     torch.save(train_dataset, args.data_cache)
 

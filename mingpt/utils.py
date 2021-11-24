@@ -140,9 +140,9 @@ def generate_samples(model, train_dataset, n_samples):
     # for visualization we have to invert the permutation used to produce the pixels
     iperm = torch.argsort(train_dataset.perm)
 
-    ncol = 8
+    ncol = 2 * int(np.sqrt(n_samples // 2))  # ncol:nrow = 2:1
     nrow = n_samples // ncol
-    plt.figure(figsize=(16, 8))
+    plt.figure(figsize=(2*ncol, 2*nrow))
     for i in range(n_samples):
         pxi = pixels[i][iperm] # note: undo the encoding permutation
         
@@ -153,20 +153,20 @@ def generate_samples(model, train_dataset, n_samples):
     plt.savefig('samples.pdf', bbox_inches='tight')
 
     # visualize some of the learned positional embeddings, maybe they contain structure
-    plt.figure(figsize=(5, 5))
-    nsee = 8 * 8
-    ncol = 8
-    nrow = nsee // ncol
-    for i in range(nsee):
+    n_posembs = 8 * 8
+    ncol_posembs = int(np.sqrt(n_posembs))
+    nrow_posembs = n_posembs // ncol_posembs
+    plt.figure(figsize=(ncol_posembs, nrow_posembs))
+    for i in range(n_posembs):
         ci = model.pos_emb.data[0, :, i].cpu()
         zci = torch.cat((torch.tensor([0.0]), ci))  # pre-cat a zero
         rzci = zci[iperm]  # undo the permutation to recover the pixel space of the image
         
-        plt.subplot(nrow, ncol, i+1)
+        plt.subplot(nrow_posembs, ncol_posembs, i+1)
         plt.imshow(rzci.view(train_dataset.d_img, train_dataset.d_img).numpy())
         plt.axis('off')
 
-    plt.savefig('posemb.pdf', bbox_inches='tight')
+    plt.savefig('posembs.pdf', bbox_inches='tight')
 
 def generate_from_half(x, model, train_dataset):
     """
