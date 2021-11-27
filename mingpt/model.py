@@ -110,6 +110,9 @@ class GPT(nn.Module):
     def __init__(self, config):
         super().__init__()
 
+        # model config
+        self.model_config = config
+
         # input embedding stem
         self.tok_emb = nn.Embedding(config.vocab_size, config.n_embd)
         self.pos_emb = nn.Parameter(torch.zeros(1, config.block_size, config.n_embd))
@@ -152,10 +155,13 @@ class GPT(nn.Module):
 
         # if we are given some desired targets also calculate the loss
         loss = None
+        unreduced_loss = None
         if targets is not None:
             loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1))
+            unreduced_loss = F.cross_entropy(logits.permute(0, 2, 1), targets, reduce=False)
+            unreduced_loss = unreduced_loss.mean(-1)  # average over pixels
 
-        return logits, loss
+        return logits, loss, unreduced_loss
 
 class LinearProbeGPT(nn.Module):
     """  GPT with a linear classifier head attached """

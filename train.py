@@ -53,7 +53,9 @@ if args.distributed:
         builtins.print = print_pass
 
 print('Running on {} GPUs total'.format(args.world_size))
-model_name = 'model_{}l_{}h_{}e_{}b_{}d_{}lr_{}.pt'.format(args.n_layer, args.n_head, args.n_embd, args.world_size * args.batch_size, args.d_img, args.lr, args.subject)
+model_name = 'model_{}l_{}h_{}e_{}b_{}d_{}lr_{}ep_{}.pt'.format(
+    args.n_layer, args.n_head, args.n_embd, args.world_size * args.batch_size, args.d_img, args.lr, args.epochs, args.subject
+    )
 ckpt_path = os.path.join(args.save_dir, model_name)
 print('The model will be saved to', ckpt_path)
 
@@ -82,8 +84,7 @@ mconf = GPTConfig(train_dataset.vocab_size, train_dataset.block_size, embd_pdrop
 model = GPT(mconf)
 
 if args.distributed:
-    # For multiprocessing distributed, DistributedDataParallel constructor should always set   
-    # the single device scope, otherwise DistributedDataParallel will use all available devices
+    # For multiprocessing distributed, DistributedDataParallel constructor should always set the single device scope, otherwise DistributedDataParallel will use all available devices.
     if args.gpu is not None:
         torch.cuda.set_device(args.gpu)
         model.cuda(args.gpu)
@@ -109,5 +110,5 @@ tokens_per_epoch = len(train_dataset) * train_dataset.block_size
 
 # initialize a trainer instance and kick off training
 tconf = TrainerConfig(max_epochs=args.epochs, batch_size=args.batch_size, ckpt_path=ckpt_path, num_workers=4)
-trainer = Trainer(model, optimizer, train_dataset, None, tconf)
+trainer = Trainer(model, optimizer, train_dataset, tconf)
 trainer.train(args)
