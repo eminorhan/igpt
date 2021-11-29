@@ -6,7 +6,7 @@
 #SBATCH --gres=gpu:rtx8000:1
 #SBATCH --cpus-per-task=2
 #SBATCH --mem=200GB
-#SBATCH --time=12:00:00
+#SBATCH --time=1:00:00
 #SBATCH --array=0
 #SBATCH --job-name=train_igpt
 #SBATCH --output=train_igpt_%A_%a.out
@@ -19,6 +19,6 @@ export WORLD_SIZE=1
 module purge
 module load cuda/11.1.74
 
-srun python -u /scratch/eo41/minGPT/train.py '/scratch/eo41/brady_1/study' --data_cache '/scratch/eo41/minGPT/data_model_cache/brady_1_study.pth' --save_dir '/scratch/eo41/minGPT/data_model_cache' --epochs 1 --batch_size 1 --lr 0.00005 --n_layer 24 --n_head 8 --n_emb 512 --resume '' --subject 'brady_1_study'
+srun python -u /scratch/eo41/minGPT/train.py '/scratch/eo41/brady_1/study' --data_cache '/scratch/eo41/minGPT/data_model_cache/brady_1_study.pth' --save_dir '/scratch/eo41/minGPT/data_model_cache' --epochs 1 --batch_size 1 --lr 0.00005 --optimizer 'SGD' --n_layer 24 --n_head 8 --n_emb 512 --resume '' --subject 'brady_1_study'
 
 echo "Done"

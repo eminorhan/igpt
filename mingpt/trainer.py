@@ -40,7 +40,7 @@ class Trainer:
                     'optimizer_state_dict': optimizer.state_dict(),
                     'train_loss': self.train_loss,
                     'clusters': self.train_dataset.clusters,
-                    'model_config': self.raw_model.model_config,
+                    'model_config': raw_model.model_config,
                     }, self.config.ckpt_path)
 
     def train(self, args):
