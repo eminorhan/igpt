@@ -4,12 +4,13 @@ import argparse
 import torch
 import torchvision
 import torch.distributed as dist
-from mingpt.utils import ImageDataset, make_dictionary
+from mingpt.utils import ImageDataset, make_dictionary, set_seed
 from mingpt.model import GPT, GPTConfig 
 from mingpt.trainer import Trainer, TrainerConfig
 
 parser = argparse.ArgumentParser(description='Train an Image GPT')
 parser.add_argument('data', metavar='DIR', help='path to frames')
+parser.add_argument('--seed', default=1, type=int, help='random seed')
 parser.add_argument('--save_dir', default='', type=str, help='model save directory')
 parser.add_argument('--d_img', default=64, type=int, help='image size (pixels)')
 parser.add_argument('--dict_size', default=512, type=int, help='dictionary size')
@@ -33,6 +34,9 @@ parser.add_argument('--local_rank', default=-1, type=int, help='local rank for d
 args = parser.parse_args()
 print(args)
 
+# set random seed
+set_seed(args.seed)
+
 # DDP setting
 if "WORLD_SIZE" in os.environ:
     args.world_size = int(os.environ["WORLD_SIZE"])
@@ -54,8 +58,8 @@ if args.distributed:
         builtins.print = print_pass
 
 print('Running on {} GPUs total'.format(args.world_size))
-model_name = 'model_{}l_{}h_{}e_{}b_{}d_{}lr_{}op_{}ep_{}.pt'.format(
-    args.n_layer, args.n_head, args.n_embd, args.world_size * args.batch_size, args.d_img, args.lr, args.optimizer, args.epochs, args.subject
+model_name = 'model_{}l_{}h_{}e_{}b_{}d_{}lr_{}op_{}ep_{}seed_{}.pt'.format(
+    args.n_layer, args.n_head, args.n_embd, args.world_size * args.batch_size, args.d_img, args.lr, args.optimizer, args.epochs, args.seed, args.subject
     )
 ckpt_path = os.path.join(args.save_dir, model_name)
 print('The model will be saved to', ckpt_path)

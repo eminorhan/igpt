@@ -1,7 +1,6 @@
 """
 Trainer code, simplified from Andrej Karpathy's minGPT
 """
-import math
 import numpy as np
 import torch
 from torch.utils.data.dataloader import DataLoader
