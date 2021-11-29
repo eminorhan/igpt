@@ -19,7 +19,8 @@ parser.add_argument('--n_embd', default=512, type=int, help='embedding dimension
 parser.add_argument('--epochs', default=200, type=int, help='number of training epochs')
 parser.add_argument('--batch_size', default=32, type=int, help='batch size per gpu')
 parser.add_argument('--lr', default=0.0005, type=float, help='learning rate')
-parser.add_argument('--subject', default='SAY', choices=['ImageNet', 'SAY', 'S', 'A', 'Y', 'brady'], help='subject')
+parser.add_argument('--optimizer', default='Adam', choices=['Adam', 'SGD'], help='optimizer')
+parser.add_argument('--subject', default='SAY', choices=['ImageNet', 'SAY', 'S', 'A', 'Y', 'brady_1_study'], help='subject')
 parser.add_argument('--data_cache', default='', type=str, help='Cache path for the training set for quicker initialization')
 parser.add_argument('--resume', default='', type=str, help='Model path for resuming training')
 parser.add_argument('--gpu', default=None, type=int)
@@ -53,8 +54,8 @@ if args.distributed:
         builtins.print = print_pass
 
 print('Running on {} GPUs total'.format(args.world_size))
-model_name = 'model_{}l_{}h_{}e_{}b_{}d_{}lr_{}ep_{}.pt'.format(
-    args.n_layer, args.n_head, args.n_embd, args.world_size * args.batch_size, args.d_img, args.lr, args.epochs, args.subject
+model_name = 'model_{}l_{}h_{}e_{}b_{}d_{}lr_{}op_{}ep_{}.pt'.format(
+    args.n_layer, args.n_head, args.n_embd, args.world_size * args.batch_size, args.d_img, args.lr, args.optimizer, args.epochs, args.subject
     )
 ckpt_path = os.path.join(args.save_dir, model_name)
 print('The model will be saved to', ckpt_path)
@@ -95,7 +96,7 @@ if args.distributed:
 else:
     model = torch.nn.DataParallel(model.cuda())
 
-optimizer = torch.optim.Adam(model.parameters(), args.lr, weight_decay=0.0)
+optimizer = torch.optim.__dict__[args.optimizer](model.parameters(), args.lr, weight_decay=0.0)
 
 if args.resume:
     if os.path.isfile(args.resume):

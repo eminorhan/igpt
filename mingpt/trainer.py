@@ -75,5 +75,8 @@ class Trainer:
             print('Epoch:', epoch, '|', 'Training loss:', self.train_loss)
 
         # save trained model, clusters, and final train and test losses
-        if args.rank == 0:
+        if args.distributed:
+            if args.rank == 0:
+                self.save_checkpoint()
+        else:
             self.save_checkpoint()
