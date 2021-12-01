@@ -89,7 +89,7 @@ mconf = GPTConfig(train_dataset.vocab_size, train_dataset.block_size, embd_pdrop
 model = GPT(mconf)
 
 if args.distributed:
-    # For multiprocessing distributed, DistributedDataParallel constructor should always set the single device scope, otherwise DistributedDataParallel will use all available devices.
+    # For multiprocessing distributed, DDP constructor should always set the single device scope, otherwise DDP will use all available devices.
     if args.gpu is not None:
         torch.cuda.set_device(args.gpu)
         model.cuda(args.gpu)
@@ -110,8 +110,6 @@ if args.resume:
         optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
     else:
         print("=> no checkpoint found at '{}', will train from scratch".format(args.resume))
-
-tokens_per_epoch = len(train_dataset) * train_dataset.block_size
 
 # initialize a trainer instance and kick off training
 tconf = TrainerConfig(max_epochs=args.epochs, batch_size=args.batch_size, ckpt_path=ckpt_path, num_workers=4)

@@ -1,6 +1,6 @@
 # Self-supervised learning with Image GPT
 
-Part of the code here is adapted from [Andrej Karpathy's minimalistic GPT implementation](https://github.com/karpathy/minGPT). 
+Part of the code here is adapted from [Andrej Karpathy's minimalistic GPT (minGPT) implementation](https://github.com/karpathy/minGPT). 
 
 Brief description of some of the code files: 
 

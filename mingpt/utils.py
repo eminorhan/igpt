@@ -95,8 +95,8 @@ def sample(model, x, steps, temperature=1.0, sample=False, top_k=None):
     return x
 
 def make_dictionary(train_data, dict_size, d_img):
-    # get random 2 pixels per image and stack them all up as rgb values to get half a million random pixels
-    pluck_rgb = lambda x: np.array(x).reshape(d_img**2, 3)[np.random.permutation(d_img**2)[:2], :]
+    # get random pixels per image and stack them all up as rgb values
+    pluck_rgb = lambda x: np.array(x).reshape(d_img**2, 3)[np.random.permutation(d_img**2)[:4000], :]
     px = np.concatenate([pluck_rgb(x) for x, y in train_data], axis=0)
     px = np.float32(px)
     print('Building the dictionary')

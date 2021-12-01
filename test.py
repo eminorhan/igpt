@@ -9,7 +9,7 @@ from torchvision.transforms import Compose, Resize
 from torchvision.datasets import ImageFolder
 
 parser = argparse.ArgumentParser(description='Test an Image GPT')
-parser.add_argument('data', metavar='DIR', help='path to frames')
+parser.add_argument('data', metavar='DIR', help='path to test frames')
 parser.add_argument('--data_cache', default='', type=str, help='Cache path for the stored test set')
 parser.add_argument('--model_cache', default='', type=str, help='Cache path for the stored model')
 parser.add_argument('--batch_size', default=1, type=int, help='batch size')

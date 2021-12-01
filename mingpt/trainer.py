@@ -73,7 +73,7 @@ class Trainer:
             self.train_loss = float(np.mean(losses))
             print('Epoch:', epoch, '|', 'Training loss:', self.train_loss)
 
-        # save trained model, clusters, and final train and test losses
+        # save trained model, clusters, and final train loss
         if args.distributed:
             if args.rank == 0:
                 self.save_checkpoint()
