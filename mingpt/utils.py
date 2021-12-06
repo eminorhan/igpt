@@ -94,10 +94,39 @@ def sample(model, x, steps, temperature=1.0, sample=False, top_k=None):
         x = torch.cat((x, ix), dim=1)
     return x
 
+# def make_dictionary(train_data, dict_size, d_img):
+#     # get random pixels per image and stack them all up as rgb values
+#     pluck_rgb = lambda x: np.array(x).reshape(d_img**2, 3)[np.random.permutation(d_img**2)[:4000], :]
+#     px = np.concatenate([pluck_rgb(x) for x, y in train_data], axis=0)
+#     px = np.float32(px)
+#     print('Building the dictionary')
+#     print('Pixel stack shape:', px.shape)
+
+#     ## compute dictionary
+#     kmeans = MiniBatchKMeans(n_clusters=dict_size, random_state=0, batch_size=128) 
+#     kmeans.fit(px)
+
+#     cluster_centers = kmeans.cluster_centers_
+#     print('Cluster centers shape:', cluster_centers.shape)
+
+#     cluster_centers = torch.from_numpy(cluster_centers)
+
+#     return cluster_centers
+
 def make_dictionary(train_data, dict_size, d_img):
-    # get random pixels per image and stack them all up as rgb values
-    pluck_rgb = lambda x: np.array(x).reshape(d_img**2, 3)[np.random.permutation(d_img**2)[:4000], :]
-    px = np.concatenate([pluck_rgb(x) for x, y in train_data], axis=0)
+    # get random 2 pixels per image and stack them all up as rgb values to get half a million random pixels
+    pluck_rgb = lambda x: np.array(x).reshape(d_img**2, 3)[np.random.permutation(d_img**2)[:32], :]
+    px = []
+    i = 0
+    print(len(train_data))
+    idx = np.arange(0, 1281167, 4)
+    for i in idx:
+        x, _ = train_data[i]
+        px.append(pluck_rgb(x))
+        if i % 10000 == 0:
+            print('pluck iteration', i)
+
+    px = np.concatenate(px, axis=0)
     px = np.float32(px)
     print('Building the dictionary')
     print('Pixel stack shape:', px.shape)
@@ -112,7 +141,7 @@ def make_dictionary(train_data, dict_size, d_img):
     cluster_centers = torch.from_numpy(cluster_centers)
 
     return cluster_centers
-    
+
 def generate_samples(model, train_dataset, n_samples):
     # to sample we also have to technically "train" a separate model for the first token in the sequence
     # we are going to do so below simply by calculating and normalizing the histogram of the first token

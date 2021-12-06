@@ -58,10 +58,10 @@ if args.distributed:
         builtins.print = print_pass
 
 print('Running on {} GPUs total'.format(args.world_size))
-model_name = 'model_{}l_{}h_{}e_{}b_{}d_{}lr_{}op_{}ep_{}seed_{}.pt'.format(
+model_name = '{}l_{}h_{}e_{}b_{}d_{}lr_{}op_{}ep_{}seed_{}.pt'.format(
     args.n_layer, args.n_head, args.n_embd, args.world_size * args.batch_size, args.d_img, args.lr, args.optimizer, args.epochs, args.seed, args.subject
     )
-ckpt_path = os.path.join(args.save_dir, model_name)
+ckpt_path = model_name  # os.path.join(args.save_dir, model_name)
 print('The model will be saved to', ckpt_path)
 
 if args.data_cache and os.path.exists(args.data_cache):
@@ -71,6 +71,8 @@ else:
     print("Building training dataset from scratch")
     # adjust transforms as needed
     train_transforms = torchvision.transforms.Compose([
+        torchvision.transforms.Resize(256),
+        torchvision.transforms.RandomCrop(224),
         torchvision.transforms.Resize(args.d_img)
         ])
     train_data = torchvision.datasets.ImageFolder(args.data, train_transforms)

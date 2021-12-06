@@ -28,23 +28,27 @@ class Trainer:
         self.config = config
         self.train_loss = None
 
-    def save_checkpoint(self):
+    def save_checkpoint(self, epoch):
         # DataParallel wrappers keep raw model object in .module attribute
         raw_model = self.model.module if hasattr(self.model, "module") else self.model
         optimizer = self.optimizer
 
         # save everything we need
-        print('Saving to:', self.config.ckpt_path)
+        save_str = 'model_{}_{}'.format(epoch, self.config.ckpt_path)
+        print('Saving to:', save_str)
         torch.save({'model_state_dict': raw_model.state_dict(), 
                     'optimizer_state_dict': optimizer.state_dict(),
                     'train_loss': self.train_loss,
                     'clusters': self.train_dataset.clusters,
                     'model_config': raw_model.model_config,
-                    }, self.config.ckpt_path)
+                    }, save_str)
 
     def train(self, args):
         model, optimizer, config = self.model, self.optimizer, self.config
         model.train()
+
+        from torch.optim.lr_scheduler import StepLR
+        scheduler = StepLR(optimizer, step_size=40, gamma=0.2)
 
         sampler = DistributedSampler(self.train_dataset) if args.distributed else None
         loader = DataLoader(self.train_dataset, shuffle=(not args.distributed), pin_memory=True, 
@@ -62,7 +66,7 @@ class Trainer:
                 y = y.cuda(non_blocking=True)
 
                 # forward the model
-                _, loss, _ = model(x, y)  # the first output returns the logits, last one returns unreduced losses
+                _, loss, _ = model(x, y)  # first output returns logits, last one returns unreduced losses
                 losses.append(loss.item())
 
                 # backprop and update the parameters
@@ -70,12 +74,14 @@ class Trainer:
                 loss.backward()
                 optimizer.step()
 
+            scheduler.step()
+
             self.train_loss = float(np.mean(losses))
             print('Epoch:', epoch, '|', 'Training loss:', self.train_loss)
 
-        # save trained model, clusters, and final train loss
-        if args.distributed:
-            if args.rank == 0:
-                self.save_checkpoint()
-        else:
-            self.save_checkpoint()
+            # save trained model, clusters, and final train loss
+            if args.distributed:
+                if args.rank == 0:
+                    self.save_checkpoint(epoch)
+            else:
+                self.save_checkpoint(epoch)
