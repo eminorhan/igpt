@@ -2,13 +2,11 @@ import os
 import builtins
 import argparse
 import torch
+import torchvision
 import torch.distributed as dist
-from torch.utils.data.distributed import DistributedSampler
-from torchvision.transforms import Compose, Resize, RandomCrop
 from mingpt.utils import ImageDataset, make_dictionary, set_seed
 from mingpt.model import GPT, GPTConfig 
 from mingpt.trainer import Trainer, TrainerConfig
-import webdataset as wds
 
 parser = argparse.ArgumentParser(description='Train an Image GPT')
 parser.add_argument('data', metavar='DIR', help='path to frames')
@@ -60,24 +58,25 @@ if args.distributed:
         builtins.print = print_pass
 
 print('Running on {} GPUs total'.format(args.world_size))
-model_name = '{}l_{}h_{}e_{}b_{}d_{}lr_{}op_{}ep_{}seed_say.pt'.format(args.n_layer, args.n_head, args.n_embd, 
+model_name = '{}l_{}h_{}e_{}b_{}d_{}lr_{}op_{}ep_{}seed_saycam.pt'.format(args.n_layer, args.n_head, args.n_embd, 
     args.world_size * args.batch_size, args.d_img, args.lr, args.optimizer, args.epochs, args.seed)
 
 ckpt_path = model_name  # os.path.join(args.save_dir, model_name)
 print('The model will be saved to', ckpt_path)
 
-print("Building training dataset from scratch")
-# adjust transforms as needed
-from torchvision.transforms import Compose, Resize, RandomCrop
-identity = lambda x: x
-train_transforms = Compose([Resize(256), RandomCrop(224), Resize(args.d_img)])
-train_dataset = wds.WebDataset(args.data).shuffle(1000).decode("pil").to_tuple("jpg;png;jpeg cls").map_tuple(train_transforms, identity)
-sampler = DistributedSampler(train_dataset)
-train_loader = wds.WebLoader(train_dataset.batched(32), shuffle=False, batch_size=None, sampler=sampler, num_workers=2)
-
-cluster_centers = make_dictionary(train_data, args.dict_size, args.d_img)
-train_dataset = ImageDataset(train_data, args.d_img, cluster_centers)
-torch.save(train_dataset, args.data_cache)
+if args.data_cache and os.path.exists(args.data_cache):
+    print("Loading training dataset from {}".format(args.data_cache))
+    train_dataset = torch.load(args.data_cache)
+else:
+    print("Building training dataset from scratch")
+    # adjust transforms as needed
+    from torchvision.transforms import Resize
+    # for imagenet/saycam training
+    train_transforms = Resize(args.d_img)
+    train_data = torchvision.datasets.ImageFolder(args.data, train_transforms)
+    cluster_centers = make_dictionary(train_data, args.dict_size, args.d_img)
+    train_dataset = ImageDataset(train_data, args.d_img, cluster_centers)
+    torch.save(train_dataset, args.data_cache)
 
 # some sanity checks
 print('Training data size:', len(train_dataset))
