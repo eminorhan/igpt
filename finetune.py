@@ -4,7 +4,7 @@ import argparse
 import torch
 import torchvision
 import torch.distributed as dist
-from mingpt.utils import ImageDataset, make_dictionary, set_seed
+from mingpt.utils import ImageDataset, set_seed
 from mingpt.model import GPT, GPTConfig 
 from mingpt.trainer import Trainer, TrainerConfig
 
@@ -22,6 +22,7 @@ parser.add_argument('--start-epoch', default=0, type=int, help='if resuming from
 parser.add_argument('--batch_size', default=32, type=int, help='batch size per gpu')
 parser.add_argument('--lr', default=0.0005, type=float, help='learning rate')
 parser.add_argument('--optimizer', default='Adam', choices=['Adam', 'SGD', 'ASGD'], help='optimizer')
+parser.add_argument('--pretrain_data', type=str, default='imagenet', choices=['imagenet', 'say', 'tabula_rasa'], help='pretrain data')
 parser.add_argument('--data_cache', default='', type=str, help='Cache path for the training set for quicker initialization')
 parser.add_argument('--resume', default='', type=str, help='Model path for resuming training')
 parser.add_argument('--gpu', default=None, type=int)
@@ -57,10 +58,18 @@ if args.distributed:
             pass
         builtins.print = print_pass
 
-print('Running on {} GPUs total'.format(args.world_size))
-model_name = '{}l_{}h_{}e_{}b_{}d_{}lr_{}op_{}ep_{}seed.pt'.format(args.n_layer, args.n_head, args.n_embd, 
-    args.world_size * args.batch_size, args.d_img, args.lr, args.optimizer, args.epochs, args.seed)
+if os.path.isfile(args.resume):
+    checkpoint = torch.load(args.resume)
+    print("=> loaded checkpoint at '{}'".format(args.resume))
+else:
+    print("=> no checkpoint found at '{}', please specify a correct checkpoint".format(args.resume))
+    raise SystemExit
 
+print('Running on {} GPUs total'.format(args.world_size))
+model_name = '{}l_{}h_{}e_{}b_{}d_{}lr_{}op_{}ep_{}seed_{}pt_brady_1_study.pt'.format(
+    args.n_layer, args.n_head, args.n_embd, args.world_size * args.batch_size, args.d_img, 
+    args.lr, args.optimizer, args.epochs, args.seed, args.pretrain_data
+    )
 ckpt_path = model_name  # os.path.join(args.save_dir, model_name)
 print('The model will be saved to', ckpt_path)
 
@@ -70,11 +79,11 @@ if args.data_cache and os.path.exists(args.data_cache):
 else:
     print("Building training dataset from scratch")
     # adjust transforms as needed
-    from torchvision.transforms import Compose, Resize, RandomCrop
-    # for imagenet/saycam training
-    train_transforms = Compose([Resize(256), RandomCrop(224), Resize(args.d_img)])
+    from torchvision.transforms import Compose, Resize
+    # for brady training
+    train_transforms = Compose([Resize(args.d_img)])
     train_data = torchvision.datasets.ImageFolder(args.data, train_transforms)
-    cluster_centers = make_dictionary(train_data, args.dict_size, args.d_img)
+    cluster_centers = checkpoint['clusters']
     train_dataset = ImageDataset(train_data, args.d_img, cluster_centers)
     torch.save(train_dataset, args.data_cache)
 
@@ -103,14 +112,10 @@ else:
 
 optimizer = torch.optim.__dict__[args.optimizer](model.parameters(), args.lr, weight_decay=0.0)
 
-if os.path.isfile(args.resume):
-    checkpoint = torch.load(args.resume)
-    model.module.load_state_dict(checkpoint['model_state_dict'])
-    print("=> loaded model weights at checkpoint '{}'".format(args.resume))
-    del checkpoint
-    torch.cuda.empty_cache()
-else:
-    print("=> no checkpoint loaded, will train from scratch")
+model.module.load_state_dict(checkpoint['model_state_dict'])
+print("=> loaded model weights at checkpoint '{}'".format(args.resume))
+del checkpoint
+torch.cuda.empty_cache()
 
 # initialize a trainer instance and kick off training
 tconf = TrainerConfig(max_epochs=args.epochs, batch_size=args.batch_size, ckpt_path=ckpt_path, num_workers=2)

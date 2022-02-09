@@ -8,5 +8,5 @@
 # Directories
 /__pycache__
 /data_model_cache
-/saycam*
-/frames*
+/sample_imagenet_frames
+/sample_saycam_frames

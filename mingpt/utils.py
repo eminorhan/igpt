@@ -24,11 +24,11 @@ class ImageDataset(Dataset):
         return len(self.pt_dataset)
 
     def __getitem__(self, idx):
-        x, y = self.pt_dataset[idx]
-        x = torch.from_numpy(np.array(x)).view(-1, 3) # flatten out all pixels
-        x = x[self.perm].float() # reshuffle pixels with any fixed permutation and -> float
-        a = ((x[:, None, :] - self.clusters[None, :, :])**2).sum(-1).argmin(1) # cluster assignments
-        return a[:-1], a[1:] # always just predict the next one in the sequence
+        x, _ = self.pt_dataset[idx]
+        x = torch.from_numpy(np.array(x)).view(-1, 3)  # flatten out all pixels
+        x = x[self.perm].float()  # reshuffle pixels with any fixed permutation and -> float
+        a = ((x[:, None, :] - self.clusters[None, :, :])**2).sum(-1).argmin(1)  # cluster assignments
+        return a[:-1], a[1:]  # always just predict the next one in the sequence
 
 class ImageDatasetWithLabels(Dataset):
     """
@@ -77,7 +77,7 @@ def sample(model, x, steps, temperature=1.0, sample=False, top_k=None):
     model.eval()
     for k in range(steps):
         x_cond = x if x.size(1) <= block_size else x[:, -block_size:] # crop context if needed
-        logits, _ = model(x_cond)
+        logits, _, _ = model(x_cond)
         # pluck the logits at the final step and scale by temperature
         logits = logits[:, -1, :] / temperature
         # optionally crop probabilities to only the top k options
@@ -118,8 +118,11 @@ def make_dictionary(train_data, dict_size, d_img):
     pluck_rgb = lambda x: np.array(x).reshape(d_img**2, 3)[np.random.permutation(d_img**2)[:32], :]
     px = []
     i = 0
+    
     print(len(train_data))
-    idx = np.arange(0, 1281167, 4)
+
+    # idx = np.arange(0, 1281167, 4)  # imagenet
+    idx = np.arange(0, 1723909, 5)  # say 1fps
     for i in idx:
         x, _ = train_data[i]
         px.append(pluck_rgb(x))
@@ -203,22 +206,22 @@ def generate_from_half(x, model, train_dataset):
     """
     cluster_centers = train_dataset.clusters
     # TODO: better handle size here
-    pixels_0 = sample(model, x[:, :2300].cuda(), 4, temperature=0.95, sample=True, top_k=100)
-    pixels_1 = sample(model, x[:, :1152].cuda(), 1152, temperature=0.95, sample=True, top_k=100)
-    pixels_2 = sample(model, x[:, :1152].cuda(), 1152, temperature=0.95, sample=True, top_k=100)
-    pixels_3 = sample(model, x[:, :1152].cuda(), 1152, temperature=0.95, sample=True, top_k=100)
-    pixels_4 = sample(model, x[:, :1152].cuda(), 1152, temperature=0.95, sample=True, top_k=100)
+    pixels_0 = sample(model, x[:, :4092].cuda(), 4, temperature=0.95, sample=True, top_k=100)
+    pixels_1 = sample(model, x[:, :2048].cuda(), 2048, temperature=0.95, sample=True, top_k=100)
+    pixels_2 = sample(model, x[:, :2048].cuda(), 2048, temperature=0.95, sample=True, top_k=100)
+    pixels_3 = sample(model, x[:, :2048].cuda(), 2048, temperature=0.95, sample=True, top_k=100)
+    pixels_4 = sample(model, x[:, :2048].cuda(), 2048, temperature=0.95, sample=True, top_k=100)
 
     # for visualization we have to invert the permutation used to produce the pixels
     iperm = torch.argsort(train_dataset.perm)
 
     ncol = 6
-    nrow = 30 // ncol
+    nrow = 36 // ncol
     plt.figure(figsize=(16, 16))
     for i in range(6):
         pxi = pixels_0[i][iperm]  # note: undo the encoding permutation
         gen_img = cluster_centers[pxi].view(train_dataset.d_img, train_dataset.d_img, 3).cpu().numpy().astype(np.uint8)
-        gen_img[23, :, :] = 0
+        gen_img[31, :, :] = 0
         
         plt.subplot(nrow, ncol, i+1)
         plt.imshow(gen_img)
@@ -227,7 +230,7 @@ def generate_from_half(x, model, train_dataset):
     for i in range(6):
         pxi = pixels_1[i][iperm] # note: undo the encoding permutation
         gen_img = cluster_centers[pxi].view(train_dataset.d_img, train_dataset.d_img, 3).numpy().astype(np.uint8)
-        gen_img[23, :, :] = 0
+        gen_img[31, :, :] = 0
 
         plt.subplot(nrow, ncol, i+1+6)
         plt.imshow(gen_img)
@@ -236,7 +239,7 @@ def generate_from_half(x, model, train_dataset):
     for i in range(6):
         pxi = pixels_2[i][iperm] # note: undo the encoding permutation
         gen_img = cluster_centers[pxi].view(train_dataset.d_img, train_dataset.d_img, 3).numpy().astype(np.uint8)
-        gen_img[23, :, :] = 0
+        gen_img[31, :, :] = 0
 
         plt.subplot(nrow, ncol, i+1+12)
         plt.imshow(gen_img)
@@ -245,7 +248,7 @@ def generate_from_half(x, model, train_dataset):
     for i in range(6):
         pxi = pixels_3[i][iperm] # note: undo the encoding permutation
         gen_img = cluster_centers[pxi].view(train_dataset.d_img, train_dataset.d_img, 3).numpy().astype(np.uint8)
-        gen_img[23, :, :] = 0
+        gen_img[31, :, :] = 0
         
         plt.subplot(nrow, ncol, i+1+18)
         plt.imshow(gen_img)
@@ -254,7 +257,7 @@ def generate_from_half(x, model, train_dataset):
     for i in range(6):
         pxi = pixels_4[i][iperm] # note: undo the encoding permutation
         gen_img = cluster_centers[pxi].view(train_dataset.d_img, train_dataset.d_img, 3).numpy().astype(np.uint8)
-        gen_img[23, :, :] = 0
+        gen_img[31, :, :] = 0
         
         plt.subplot(nrow, ncol, i+1+24)
         plt.imshow(gen_img)

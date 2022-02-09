@@ -5,6 +5,8 @@ import numpy as np
 import torch
 from torch.utils.data.dataloader import DataLoader
 from torch.utils.data.distributed import DistributedSampler
+from torch.optim.lr_scheduler import StepLR
+
 
 class TrainerConfig:
     # optimization parameters
@@ -31,13 +33,11 @@ class Trainer:
     def save_checkpoint(self, epoch):
         # DataParallel wrappers keep raw model object in .module attribute
         raw_model = self.model.module if hasattr(self.model, "module") else self.model
-        optimizer = self.optimizer
-
+        
         # save everything we need
         save_str = 'model_{}_{}'.format(epoch, self.config.ckpt_path)
         print('Saving to:', save_str)
         torch.save({'model_state_dict': raw_model.state_dict(), 
-                    'optimizer_state_dict': optimizer.state_dict(),
                     'train_loss': self.train_loss,
                     'clusters': self.train_dataset.clusters,
                     'model_config': raw_model.model_config,
@@ -47,14 +47,13 @@ class Trainer:
         model, optimizer, config = self.model, self.optimizer, self.config
         model.train()
 
-        from torch.optim.lr_scheduler import StepLR
-        scheduler = StepLR(optimizer, step_size=40, gamma=0.2)
+        scheduler = StepLR(optimizer, step_size=60, gamma=0.2)
 
         sampler = DistributedSampler(self.train_dataset) if args.distributed else None
         loader = DataLoader(self.train_dataset, shuffle=(not args.distributed), pin_memory=True, 
                             sampler=sampler, batch_size=config.batch_size, num_workers=config.num_workers)
 
-        for epoch in range(config.max_epochs):
+        for epoch in range(args.start_epoch, config.max_epochs):
             if args.distributed: 
                 loader.sampler.set_epoch(epoch)
 
